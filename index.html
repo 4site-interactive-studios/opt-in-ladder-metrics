@@ -108,6 +108,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(
 /* ── Main ── */
 .main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
 
+/* ── Date range bar ── */
+.date-range-bar {
+  font-family: 'DM Mono', monospace; font-size: 12px; color: var(--mid);
+  letter-spacing: 0.04em; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 8px;
+}
+.date-range-bar .date-range-label { color: var(--ink); font-weight: 500; }
+
 /* ── KPI row ── */
 .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 16px; margin-bottom: 28px; }
 .kpi-card {
@@ -947,6 +955,7 @@ function buildDashboardShell() {
 
   document.getElementById('main-content').innerHTML = `
 
+    <div class="date-range-bar" id="date-range-bar"></div>
     <div class="kpi-row" id="kpi-row"></div>
 
     <!-- Combined timeseries with ratio overlay -->
@@ -1151,6 +1160,24 @@ function renderKPIs() {
   const ratio    = unique>0?(total/unique).toFixed(2):'0.00';
   const multiPct = unique>0?((multi/unique)*100).toFixed(1):'0.0';
 
+  // ── Date range bar ──
+  const dateBar = document.getElementById('date-range-bar');
+  if (dateBar) {
+    const dates = filteredRows.map(r=>r.date).filter(Boolean).sort();
+    if (dates.length) {
+      const fmtMonthYear = d => {
+        const [y,m] = d.split('-');
+        return new Date(+y,+m-1,1).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+      };
+      const first = fmtMonthYear(dates[0]);
+      const last  = fmtMonthYear(dates[dates.length-1]);
+      const rangeStr = first === last ? first : `${first} – ${last}`;
+      dateBar.innerHTML = `<span>Showing data for</span><span class="date-range-label">${rangeStr}</span>`;
+    } else {
+      dateBar.innerHTML = '';
+    }
+  }
+
   const kpis = [
     {label:'Unique Participants',value:fmt(unique),      sub:'supporters who engaged',   accent:''},
     {label:'Total Opt-Ins',      value:fmt(total),       sub:'submissions to ladder',    accent:'accent-amber'},
@@ -1219,8 +1246,8 @@ function renderCharts() {
   charts['timeseries'] = new Chart(document.getElementById('chart-timeseries'),{
     type:'bar',
     data:{labels,datasets:[
-      {label:'Total Opt-Ins',       data:pd.map(d=>d.optins),       backgroundColor:'rgba(45,90,64,0.85)',  borderRadius:4, yAxisID:'y',  order:3, hidden:true},
       {label:'Unique Participants', data:pd.map(d=>d.participants), backgroundColor:'rgba(242,200,75,0.9)', borderRadius:4, yAxisID:'y',  order:2},
+      {label:'Total Opt-Ins',       data:pd.map(d=>d.optins),       backgroundColor:'rgba(45,90,64,0.85)',  borderRadius:4, yAxisID:'y',  order:3, hidden:true},
       {label:'Depth Ratio',         data:pd.map(d=>d.ratio),        type:'line',
        borderColor:PAL.bark, backgroundColor:'rgba(139,105,20,0.08)',
        pointBackgroundColor:PAL.amber, pointRadius:4, pointHoverRadius:6,
@@ -1583,40 +1610,118 @@ function renderCampaignTable() {
 }
 
 // ════════════════════════════════════════════════
-//  Executive Summary — clipboard copy
+//  Executive Summary — clipboard copy (rich text HTML)
 // ════════════════════════════════════════════════
-function buildExecutiveSummary() {
-  const unique    = new Set(filteredRows.map(r=>r.supporterID)).size;
-  const total     = filteredRows.length;
-  const depths    = Object.values(getDepthMap(filteredRows));
-  const multi     = depths.filter(d=>d>1).length;
-  const ratio     = unique>0?(total/unique).toFixed(2):'0.00';
-  const multiPct  = unique>0?((multi/unique)*100).toFixed(1):'0.0';
-  const onePct    = unique>0?(((depths.filter(d=>d===1).length)/unique)*100).toFixed(1):'0.0';
 
-  // Describe current filter state for context line
-  const period   = document.getElementById('filter-period');
-  const periodLabel = period.options[period.selectedIndex]?.text || 'All Time';
-  const gran     = document.getElementById('filter-granularity').value === 'quarterly' ? 'quarterly' : 'monthly';
+// Shared table styles inlined so they survive paste into any WYSIWYG
+const SUMMARY_TABLE_STYLE = `border-collapse:collapse;width:100%;margin:0;`;
+const SUMMARY_TH_STYLE    = `text-align:left;padding:6px 14px 6px 0;font-weight:600;color:#1a3a2a;border-bottom:2px solid #c8ddd0;font-size:14px;`;
+const SUMMARY_TD_STYLE    = `padding:5px 14px 5px 0;border-bottom:1px solid #e8ede9;font-size:14px;color:#1c1c1a;`;
+const SUMMARY_TD_R_STYLE  = `padding:5px 0;border-bottom:1px solid #e8ede9;font-size:14px;color:#1c1c1a;text-align:right;`;
 
-  const lines = [];
-  const divider = '─────────────────────────────────';
+function summaryTable(headers, rows) {
+  const ths = headers.map((h,i) =>
+    `<th style="${SUMMARY_TH_STYLE}${i>0?'text-align:right;':''}">${h}</th>`
+  ).join('');
+  const trs = rows.map(cols =>
+    `<tr>${cols.map((c,i) =>
+      `<td style="${i===0?SUMMARY_TD_STYLE:SUMMARY_TD_R_STYLE}">${c}</td>`
+    ).join('')}</tr>`
+  ).join('');
+  return `<table style="${SUMMARY_TABLE_STYLE}"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+}
 
-  lines.push('OPT-IN LADDER PERFORMANCE SUMMARY');
-  lines.push(`Generated by 4Site's Opt-In Ladder Analytics Visualizer`);
-  lines.push(`Period: ${periodLabel}  ·  View: ${gran}`);
-  lines.push(divider);
+function sectionHeading(text) {
+  return `<h3 style="margin:28px 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b7066;border-bottom:1px solid #c8ddd0;padding-bottom:6px;">${text}</h3>`;
+}
 
-  // Core metrics
-  lines.push('');
-  lines.push('PARTICIPATION');
-  lines.push(`  Unique Participants   ${fmt(unique)}`);
-  lines.push(`  Total Opt-Ins         ${fmt(total)}`);
-  lines.push(`  Depth Ratio           ${ratio}×  (opt-ins per participant)`);
-  lines.push('');
-  lines.push('ENGAGEMENT QUALITY');
-  lines.push(`  Multi-Step %          ${multiPct}%  of participants took 2+ opt-ins`);
-  lines.push(`  Single-Step %         ${onePct}%  of participants took only 1 opt-in`);
+function buildExecutiveSummaryHTML() {
+  const unique   = new Set(filteredRows.map(r=>r.supporterID)).size;
+  const total    = filteredRows.length;
+  const depths   = Object.values(getDepthMap(filteredRows));
+  const multi    = depths.filter(d=>d>1).length;
+  const ratio    = unique>0?(total/unique).toFixed(2):'0.00';
+  const multiPct = unique>0?((multi/unique)*100).toFixed(1):'0.0';
+  const onePct   = unique>0?(((depths.filter(d=>d===1).length)/unique)*100).toFixed(1):'0.0';
+
+  // ── Date range ──
+  // If "All Time" is selected, derive actual first/last dates from filteredRows
+  const periodEl    = document.getElementById('filter-period');
+  const periodValue = periodEl.value;
+  const periodLabel = periodEl.options[periodEl.selectedIndex]?.text || 'All Time';
+  const gran        = document.getElementById('filter-granularity').value === 'quarterly' ? 'Quarterly' : 'Monthly';
+
+  let dateRangeStr;
+  if (periodValue === 'all') {
+    const dates = filteredRows.map(r=>r.date).filter(Boolean).sort();
+    if (dates.length) {
+      const fmt2 = d => { const [y,m,day] = d.split('-'); return new Date(+y,+m-1,+day).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+      dateRangeStr = `${fmt2(dates[0])} – ${fmt2(dates[dates.length-1])}`;
+    } else {
+      dateRangeStr = 'All Time';
+    }
+  } else {
+    dateRangeStr = periodLabel;
+  }
+
+  // ── Active drill-downs ──
+  const drillDowns = [];
+  if (F.hasER2) {
+    const sourceEl = document.getElementById('filter-source');
+    const sv = sourceEl?.value;
+    if (sv && sv !== 'all') drillDowns.push(`Source: ${sourceEl.options[sourceEl.selectedIndex].text}`);
+  }
+  if (F.hasCampaignID) {
+    const campEl = document.getElementById('filter-campaign');
+    const cv = campEl?.value;
+    if (cv && cv !== 'all') drillDowns.push(`Campaign: ${campEl.options[campEl.selectedIndex].text}`);
+  }
+  if (F.hasCD32) {
+    const devEl = document.getElementById('filter-device');
+    const dv = devEl?.value;
+    if (dv && dv !== 'all') drillDowns.push(`Device: ${dv}`);
+  }
+  const outlierOn = document.getElementById('outlier-toggle')?.checked;
+  if (outlierOn && outlierThreshold < Infinity) drillDowns.push(`Outliers excluded (≤ ${outlierThreshold} steps)`);
+
+  const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  // ── Build HTML ──
+  let html = `<div style="font-family:Georgia,serif;max-width:640px;color:#1c1c1a;line-height:1.5;">`;
+
+  // Title block
+  html += `<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#1a3a2a;">Opt-In Ladder Performance Summary</h1>`;
+  html += `<p style="margin:0 0 2px;font-size:13px;color:#6b7066;">Prepared by 4Site Studios &nbsp;·&nbsp; 4sitestudios.com</p>`;
+  html += `<p style="margin:0 0 2px;font-size:13px;color:#6b7066;">Generated ${today}</p>`;
+
+  // Context block — dates + drill-downs
+  html += `<div style="margin:16px 0 0;padding:12px 16px;background:#f5f0e8;border-left:3px solid #2d5a40;border-radius:2px;">`;
+  html += `<p style="margin:0 0 4px;font-size:13px;"><strong>Date Range:</strong> ${dateRangeStr} &nbsp;·&nbsp; <strong>View:</strong> ${gran}</p>`;
+  if (drillDowns.length) {
+    html += `<p style="margin:0;font-size:13px;"><strong>Filters:</strong> ${drillDowns.join(' &nbsp;·&nbsp; ')}</p>`;
+  }
+  html += `</div>`;
+
+  // Participation
+  html += sectionHeading('Participation');
+  html += summaryTable(
+    ['Metric', 'Value'],
+    [
+      ['Unique Participants', `<strong>${fmt(unique)}</strong>`],
+      ['Total Opt-Ins',       `<strong>${fmt(total)}</strong>`],
+      ['Depth Ratio',         `<strong>${ratio}×</strong> <span style="color:#6b7066;font-size:12px;">(opt-ins per participant)</span>`],
+    ]
+  );
+
+  // Engagement quality
+  html += sectionHeading('Engagement Quality');
+  html += summaryTable(
+    ['Metric', 'Value'],
+    [
+      ['Multi-Step Participants', `<strong>${multiPct}%</strong> <span style="color:#6b7066;font-size:12px;">took 2+ opt-ins</span>`],
+      ['Single-Step Participants', `<strong>${onePct}%</strong> <span style="color:#6b7066;font-size:12px;">took only 1 opt-in</span>`],
+    ]
+  );
 
   // Traffic source mix
   if (F.hasER2) {
@@ -1624,12 +1729,15 @@ function buildExecutiveSummary() {
     filteredRows.forEach(r => { if(r.medium) mc[capitalize(r.medium)]=(mc[capitalize(r.medium)]||0)+1; });
     const sorted = Object.entries(mc).sort((a,b)=>b[1]-a[1]);
     const tot = sorted.reduce((a,[,v])=>a+v,0);
-    lines.push('');
-    lines.push('TRAFFIC SOURCE MIX');
-    sorted.slice(0,5).forEach(([src,count]) => {
-      const pct = tot>0?((count/tot)*100).toFixed(1):'0.0';
-      lines.push(`  ${src.padEnd(22)}${fmt(count).padStart(7)}  (${pct}%)`);
-    });
+    html += sectionHeading('Traffic Source Mix');
+    html += summaryTable(
+      ['Source', 'Opt-Ins', 'Share'],
+      sorted.slice(0,5).map(([src,count]) => [
+        src,
+        fmt(count),
+        `${tot>0?((count/tot)*100).toFixed(1):0}%`
+      ])
+    );
   }
 
   // Source page type
@@ -1639,12 +1747,11 @@ function buildExecutiveSummary() {
     const sorted = Object.entries(sc).sort((a,b)=>b[1]-a[1]);
     const tot = sorted.reduce((a,[,v])=>a+v,0);
     if (sorted.length > 0) {
-      lines.push('');
-      lines.push('ENTRY PAGE TYPE');
-      sorted.forEach(([type,count]) => {
-        const pct = tot>0?((count/tot)*100).toFixed(1):'0.0';
-        lines.push(`  ${type.padEnd(22)}${fmt(count).padStart(7)}  (${pct}%)`);
-      });
+      html += sectionHeading('Entry Page Type');
+      html += summaryTable(
+        ['Page Type', 'Opt-Ins', 'Share'],
+        sorted.map(([type,count]) => [type, fmt(count), `${tot>0?((count/tot)*100).toFixed(1):0}%`])
+      );
     }
   }
 
@@ -1655,63 +1762,143 @@ function buildExecutiveSummary() {
     cd32Rows.forEach(r=>{dt[r.cd32.deviceType]=(dt[r.cd32.deviceType]||0)+1;});
     const sorted = Object.entries(dt).sort((a,b)=>b[1]-a[1]);
     const tot = sorted.reduce((a,[,v])=>a+v,0);
-    lines.push('');
-    lines.push('DEVICE BREAKDOWN');
-    sorted.forEach(([type,count]) => {
-      const pct = tot>0?((count/tot)*100).toFixed(1):'0.0';
-      lines.push(`  ${type.padEnd(22)}${fmt(count).padStart(7)}  (${pct}%)`);
-    });
+    html += sectionHeading('Device Breakdown');
+    html += summaryTable(
+      ['Device', 'Opt-Ins', 'Share'],
+      sorted.map(([type,count]) => [type, fmt(count), `${tot>0?((count/tot)*100).toFixed(1):0}%`])
+    );
   }
 
-  // Depth distribution top 5
+  // Depth distribution
   const dc2 = {};
   depths.forEach(d=>{const b=d<=10?d:'10+';dc2[b]=(dc2[b]||0)+1;});
   const depthSorted = Object.entries(dc2).sort((a,b)=>Number(a[0])-Number(b[0])).slice(0,6);
-  lines.push('');
-  lines.push('DEPTH DISTRIBUTION  (top depths by participant count)');
-  depthSorted.forEach(([d,count]) => {
-    const pct = unique>0?((count/unique)*100).toFixed(1):'0.0';
-    const label = `${d} step${d!=='1'&&d!==1?'s':''}`;
-    lines.push(`  ${label.padEnd(22)}${fmt(count).padStart(7)}  (${pct}% of participants)`);
-  });
+  html += sectionHeading('Depth Distribution');
+  html += summaryTable(
+    ['Steps Completed', 'Participants', '% of Total'],
+    depthSorted.map(([d,count]) => {
+      const label = `${d} step${d!=='1'&&d!==1?'s':''}`;
+      const pct = unique>0?((count/unique)*100).toFixed(1):'0.0';
+      return [label, fmt(count), `${pct}%`];
+    })
+  );
 
-  // GA4 conversion rate if available
+  // GA4 conversion rate
   if (hasAnyGA4Data()) {
     const adblockOn  = document.getElementById('adblock-toggle')?.checked;
     const adblockPct = parseInt(document.getElementById('adblock-slider')?.value || AD_BLOCK_DEFAULT, 10);
     const pd = getPeriodData();
-    const gran = document.getElementById('filter-granularity').value;
-    if (gran === 'monthly') {
-      const totalViews = pd.reduce((sum,d)=>{
-        const v = ga4Views[d.period];
-        return sum + (v||0);
-      },0);
+    const granRaw = document.getElementById('filter-granularity').value;
+    if (granRaw === 'monthly') {
+      const totalViews = pd.reduce((sum,d)=>sum+(ga4Views[d.period]||0),0);
       if (totalViews > 0) {
-        const adjViews = adblockOn ? Math.round(totalViews*(1+adblockPct/100)) : totalViews;
+        const adjViews = adblockOn ? Math.round(totalViews*(1+adblockPct/100)) : null;
         const cvr = ((unique/totalViews)*100).toFixed(2);
-        const cvrAdj = adblockOn ? ((unique/adjViews)*100).toFixed(2) : null;
-        lines.push('');
-        lines.push('CONVERSION RATE  (vs GA4 pageviews)');
-        lines.push(`  GA4 Pageviews         ${fmt(totalViews)}`);
-        if (adblockOn) lines.push(`  Adj. Pageviews (+${adblockPct}%) ${fmt(adjViews)}`);
-        lines.push(`  CVR (raw)             ${cvr}%`);
-        if (cvrAdj) lines.push(`  CVR (adj.)            ${cvrAdj}%`);
+        const cvrAdj = adjViews ? ((unique/adjViews)*100).toFixed(2) : null;
+        html += sectionHeading('Conversion Rate (vs GA4 Pageviews)');
+        const cvrRows = [
+          ['GA4 Pageviews (reported)', fmt(totalViews), '—'],
+        ];
+        if (adjViews) cvrRows.push([`Adj. Pageviews (+${adblockPct}% ad blocker correction)`, fmt(adjViews), '—']);
+        cvrRows.push(['CVR (raw)', '—', `${cvr}%`]);
+        if (cvrAdj) cvrRows.push(['CVR (adjusted)', '—', `${cvrAdj}%`]);
+        html += summaryTable(['Metric', 'Pageviews', 'CVR'], cvrRows);
       }
     }
   }
 
-  lines.push('');
-  lines.push(divider);
-  lines.push(`Prepared by 4Site Studios  ·  4sitestudios.com`);
+  // Footer
+  html += `<p style="margin:32px 0 0;font-size:12px;color:#6b7066;border-top:1px solid #c8ddd0;padding-top:12px;">Prepared by 4Site Studios &nbsp;·&nbsp; <a href="https://4sitestudios.com" style="color:#2d5a40;">4sitestudios.com</a></p>`;
+  html += `</div>`;
 
-  return lines.join('\n');
+  return html;
+}
+
+function buildExecutiveSummaryPlaintext() {
+  // Plain text fallback for clipboard — stripped version of the same data
+  const unique   = new Set(filteredRows.map(r=>r.supporterID)).size;
+  const total    = filteredRows.length;
+  const depths   = Object.values(getDepthMap(filteredRows));
+  const multi    = depths.filter(d=>d>1).length;
+  const ratio    = unique>0?(total/unique).toFixed(2):'0.00';
+  const multiPct = unique>0?((multi/unique)*100).toFixed(1):'0.0';
+  const onePct   = unique>0?(((depths.filter(d=>d===1).length)/unique)*100).toFixed(1):'0.0';
+
+  const periodEl    = document.getElementById('filter-period');
+  const periodValue = periodEl.value;
+  let dateRangeStr;
+  if (periodValue === 'all') {
+    const dates = filteredRows.map(r=>r.date).filter(Boolean).sort();
+    if (dates.length) {
+      const fmt2 = d => { const [y,m,day] = d.split('-'); return new Date(+y,+m-1,+day).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+      dateRangeStr = `${fmt2(dates[0])} – ${fmt2(dates[dates.length-1])}`;
+    } else { dateRangeStr = 'All Time'; }
+  } else {
+    dateRangeStr = periodEl.options[periodEl.selectedIndex]?.text || 'All Time';
+  }
+
+  const gran = document.getElementById('filter-granularity').value === 'quarterly' ? 'Quarterly' : 'Monthly';
+  const drillDowns = [];
+  if (F.hasER2) { const el=document.getElementById('filter-source'); if(el?.value!=='all') drillDowns.push(`Source: ${el.options[el.selectedIndex].text}`); }
+  if (F.hasCampaignID) { const el=document.getElementById('filter-campaign'); if(el?.value!=='all') drillDowns.push(`Campaign: ${el.options[el.selectedIndex].text}`); }
+  if (F.hasCD32) { const el=document.getElementById('filter-device'); if(el?.value!=='all') drillDowns.push(`Device: ${el.value}`); }
+  if (document.getElementById('outlier-toggle')?.checked && outlierThreshold<Infinity) drillDowns.push(`Outliers excluded (≤ ${outlierThreshold} steps)`);
+
+  const D = '─────────────────────────────────';
+  const lines = [
+    'OPT-IN LADDER PERFORMANCE SUMMARY',
+    `Prepared by 4Site Studios · 4sitestudios.com`,
+    `Date Range: ${dateRangeStr}  ·  View: ${gran}`,
+    drillDowns.length ? `Filters: ${drillDowns.join('  ·  ')}` : '',
+    D,
+    '',
+    'PARTICIPATION',
+    `  Unique Participants   ${fmt(unique)}`,
+    `  Total Opt-Ins         ${fmt(total)}`,
+    `  Depth Ratio           ${ratio}×`,
+    '',
+    'ENGAGEMENT QUALITY',
+    `  Multi-Step %          ${multiPct}%  (2+ opt-ins)`,
+    `  Single-Step %         ${onePct}%  (1 opt-in only)`,
+  ];
+
+  if (F.hasER2) {
+    const mc={};
+    filteredRows.forEach(r=>{if(r.medium)mc[capitalize(r.medium)]=(mc[capitalize(r.medium)]||0)+1;});
+    const s=Object.entries(mc).sort((a,b)=>b[1]-a[1]),tot=s.reduce((a,[,v])=>a+v,0);
+    lines.push('','TRAFFIC SOURCE MIX');
+    s.slice(0,5).forEach(([src,c])=>lines.push(`  ${src.padEnd(22)}${fmt(c).padStart(7)}  (${tot>0?((c/tot)*100).toFixed(1):0}%)`));
+  }
+
+  const dc2={};
+  depths.forEach(d=>{const b=d<=10?d:'10+';dc2[b]=(dc2[b]||0)+1;});
+  lines.push('','DEPTH DISTRIBUTION');
+  Object.entries(dc2).sort((a,b)=>Number(a[0])-Number(b[0])).slice(0,6).forEach(([d,c])=>{
+    const pct=unique>0?((c/unique)*100).toFixed(1):'0.0';
+    lines.push(`  ${`${d} step${d!=='1'&&d!==1?'s':''}`.padEnd(22)}${fmt(c).padStart(7)}  (${pct}%)`);
+  });
+
+  lines.push('',D,'Prepared by 4Site Studios · 4sitestudios.com');
+  return lines.filter(l=>l!==undefined).join('\n');
 }
 
 async function copyExecutiveSummary() {
   const btn = document.getElementById('btn-copy-summary');
   try {
-    const text = buildExecutiveSummary();
-    await navigator.clipboard.writeText(text);
+    const html      = buildExecutiveSummaryHTML();
+    const plaintext = buildExecutiveSummaryPlaintext();
+
+    // Try rich-text copy first (ClipboardItem API), fall back to plain text
+    if (typeof ClipboardItem !== 'undefined') {
+      const item = new ClipboardItem({
+        'text/html':  new Blob([html],      {type:'text/html'}),
+        'text/plain': new Blob([plaintext], {type:'text/plain'}),
+      });
+      await navigator.clipboard.write([item]);
+    } else {
+      await navigator.clipboard.writeText(plaintext);
+    }
+
     const orig = btn.innerHTML;
     btn.innerHTML = '<span class="btn-icon">✓</span> Copied!';
     btn.style.borderColor = 'var(--fern)';
