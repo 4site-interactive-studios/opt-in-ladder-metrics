@@ -176,6 +176,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(
 .ratio-badge { display: inline-block; font-family: 'DM Mono', monospace; font-size: 11px; background: var(--mist); color: var(--forest); padding: 2px 7px; border-radius: 3px; }
 .q-row td { background: var(--cream) !important; font-weight: 600; border-top: 1.5px solid rgba(0,0,0,0.1); }
 .q-row td:first-child { font-family: 'DM Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bark); }
+.cvr-error td { background: #fde8e8 !important; color: #9b1c1c !important; }
+.cvr-error td .ratio-badge { background: rgba(155,28,28,0.1); color: #9b1c1c; }
 
 /* ── Depth table ── */
 .depth-table { width: 100%; border-collapse: collapse; }
@@ -1477,9 +1479,10 @@ function renderTable() {
   }
 
   function cvrCell(participants, views, cls='') {
-    if (!views) return `<td class="views-cell">—</td>`;
-    const pct = ((participants / views) * 100).toFixed(2);
-    return `<td class="cvr-cell ${cls}">${pct}%</td>`;
+    if (!views) return { html: `<td class="views-cell">—</td>`, error: false };
+    const pct = (participants / views) * 100;
+    const error = pct > 100;
+    return { html: `<td class="cvr-cell ${cls}">${pct.toFixed(2)}%</td>`, error };
   }
 
   function viewsCell(raw, adjusted, adblockOn) {
@@ -1488,16 +1491,18 @@ function renderTable() {
     return `<td class="views-cell">${fmt(raw)}</td><td class="views-cell ${adblockOn ? 'adjusted' : ''}">${adjStr}</td>`;
   }
 
-  function rowCells(d, cls='') {
+  function rowCells(d) {
     const base = `<td>${d.label}</td><td>${fmt(d.participants)}</td><td>${fmt(d.optins)}</td>
       <td><span class="ratio-badge">${d.ratio}×</span></td><td>${d.oneStepPct}%</td><td>${d.multiStepPct}%</td>`;
-    if (!hasGA4) return base;
-    const raw  = gran === 'monthly' ? (ga4Views[d.period] ?? null) : null; // quarterly: handled separately
+    if (!hasGA4) return { html: base, error: false };
+    const raw  = gran === 'monthly' ? (ga4Views[d.period] ?? null) : null;
     const adj  = raw != null ? Math.round(raw * (1 + (adblockOn ? adblockPct : 0) / 100)) : null;
-    return base
-      + viewsCell(raw, adj, adblockOn)
-      + cvrCell(d.participants, raw)
-      + (adblockOn ? cvrCell(d.participants, adj, 'adjusted') : '');
+    const rawCvr = cvrCell(d.participants, raw);
+    const adjCvr = adblockOn ? cvrCell(d.participants, adj, 'adjusted') : { html: '', error: false };
+    return {
+      html: base + viewsCell(raw, adj, adblockOn) + rawCvr.html + adjCvr.html,
+      error: rawCvr.error || adjCvr.error
+    };
   }
 
   function tr(cells, cls='') {
@@ -1515,24 +1520,32 @@ function renderTable() {
       (qMap[qk] = qMap[qk] || []).push(d);
     });
     Object.entries(qMap).sort(([a], [b]) => a.localeCompare(b)).forEach(([qk, months]) => {
-      months.forEach(d => tr(rowCells(d)));
+      months.forEach(d => {
+        const { html, error } = rowCells(d);
+        tr(html, error ? 'cvr-error' : '');
+      });
 
       const qP  = months.reduce((a, b) => a + b.participants, 0);
       const qO  = months.reduce((a, b) => a + b.optins, 0);
       const qRatio = qP > 0 ? (qO / qP).toFixed(2) : '0.00';
-      let qExtra = '';
+      let qExtra = '', qError = false;
       if (hasGA4) {
         const qRaw = months.reduce((sum, d) => sum + (ga4Views[d.period] ?? 0), 0) || null;
         const qAdj = qRaw != null ? Math.round(qRaw * (1 + (adblockOn ? adblockPct : 0) / 100)) : null;
-        qExtra = viewsCell(qRaw, qAdj, adblockOn)
-          + cvrCell(qP, qRaw)
-          + (adblockOn ? cvrCell(qP, qAdj, 'adjusted') : '');
+        const qRawCvr = cvrCell(qP, qRaw);
+        const qAdjCvr = adblockOn ? cvrCell(qP, qAdj, 'adjusted') : { html: '', error: false };
+        qExtra = viewsCell(qRaw, qAdj, adblockOn) + qRawCvr.html + qAdjCvr.html;
+        qError = qRawCvr.error || qAdjCvr.error;
       }
       tr(`<td>${qk} Total</td><td>${fmt(qP)}</td><td>${fmt(qO)}</td>
-          <td><span class="ratio-badge">${qRatio}×</span></td><td>—</td><td>—</td>${qExtra}`, 'q-row');
+          <td><span class="ratio-badge">${qRatio}×</span></td><td>—</td><td>—</td>${qExtra}`,
+        qError ? 'q-row cvr-error' : 'q-row');
     });
   } else {
-    pd.forEach(d => tr(rowCells(d)));
+    pd.forEach(d => {
+      const { html, error } = rowCells(d);
+      tr(html, error ? 'cvr-error' : '');
+    });
   }
 }
 
@@ -1625,12 +1638,12 @@ function summaryTable(headers, rows, rowMeta) {
     `<th style="${SUMMARY_TH_STYLE}${i>0?'text-align:right;':''}">${h}</th>`
   ).join('');
   const trs = rows.map((cols, ri) => {
-    const meta = rowMeta?.[ri];
-    const rowBg    = meta?.bg    ? `background:${meta.bg};`    : '';
-    const rowColor = meta?.color ? `color:${meta.color};`      : '';
-    return `<tr style="${rowBg}">${cols.map((c,i) => {
+    const meta     = rowMeta?.[ri];
+    const tdBg     = meta?.bg    ? `background:${meta.bg};`    : '';
+    const tdColor  = meta?.color ? `color:${meta.color};`      : '';
+    return `<tr>${cols.map((c,i) => {
       const base = i===0 ? SUMMARY_TD_STYLE : SUMMARY_TD_R_STYLE;
-      return `<td style="${base}${rowColor}">${c}</td>`;
+      return `<td style="${base}${tdBg}${tdColor}">${c}</td>`;
     }).join('')}</tr>`;
   }).join('');
   return `<table style="${SUMMARY_TABLE_STYLE}"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
