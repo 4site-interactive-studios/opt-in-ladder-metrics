@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4Site's Opt-In Ladder · Analytics Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+:root {
+  --forest: #1a3a2a;
+  --moss:   #2d5a40;
+  --sage:   #4a7c59;
+  --fern:   #6fa37f;
+  --mist:   #c8ddd0;
+  --cream:  #f5f0e8;
+  --bark:   #8b6914;
+  --amber:  #d4a017;
+  --gold:   #f2c84b;
+  --paper:  #faf8f3;
+  --ink:    #1c1c1a;
+  --mid:    #6b7066;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+
+/* ── Upload ── */
+#upload-screen {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--forest); position: relative; overflow: hidden;
+}
+#upload-screen::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 80%, rgba(74,124,89,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 80% 20%, rgba(111,163,127,0.2) 0%, transparent 50%);
+}
+.upload-inner { position: relative; text-align: center; max-width: 560px; padding: 0 24px; }
+.upload-badge {
+  display: inline-block; font-family: 'DM Mono', monospace; font-size: 11px;
+  letter-spacing: 0.15em; text-transform: uppercase; color: var(--fern);
+  border: 1px solid rgba(111,163,127,0.4); padding: 6px 16px; border-radius: 2px; margin-bottom: 28px;
+}
+.upload-title { font-family: 'Fraunces', serif; font-size: clamp(36px,5vw,56px); font-weight: 300; color: var(--cream); line-height: 1.1; margin-bottom: 16px; }
+.upload-title em { font-style: italic; color: var(--gold); }
+.upload-sub { font-size: 15px; color: rgba(200,221,208,0.7); margin-bottom: 48px; line-height: 1.6; }
+.drop-zone {
+  border: 1.5px dashed rgba(111,163,127,0.5); border-radius: 8px; padding: 48px 32px;
+  cursor: pointer; transition: all 0.25s ease; background: rgba(255,255,255,0.04);
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--gold); background: rgba(242,200,75,0.06); }
+.drop-icon { font-size: 36px; margin-bottom: 16px; display: block; }
+.drop-label { font-size: 15px; color: var(--mist); margin-bottom: 8px; }
+.drop-label strong { color: var(--gold); font-weight: 500; }
+.drop-hint { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--fern); letter-spacing: 0.05em; }
+#file-input { display: none; }
+.progress-bar { height: 2px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 24px; overflow: hidden; display: none; }
+.progress-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.3s ease; border-radius: 2px; }
+.parse-status { margin-top: 16px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--fern); min-height: 18px; }
+
+/* ── Top bar ── */
+#dashboard { display: none; }
+.top-bar {
+  background: var(--forest); padding: 0 32px; height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.top-bar-title { display: flex; align-items: center; gap: 12px; }
+.top-bar-title .logo { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 300; color: var(--cream); font-style: italic; }
+.top-bar-title .logo span { color: var(--gold); }
+.top-bar-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--fern); letter-spacing: 0.05em; }
+.btn-reset {
+  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  background: none; border: 1px solid rgba(111,163,127,0.4); color: var(--fern);
+  padding: 6px 16px; border-radius: 2px; cursor: pointer; transition: all 0.2s;
+}
+.btn-reset:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ── Filter bar ── */
+.filter-bar {
+  background: var(--cream); border-bottom: 1px solid rgba(0,0,0,0.08);
+  padding: 12px 32px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+}
+.filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-label { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--mid); }
+.filter-select {
+  font-family: 'DM Sans', sans-serif; font-size: 13px; border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 4px; padding: 5px 10px; background: white; color: var(--ink); cursor: pointer; outline: none;
+}
+.filter-select:focus { border-color: var(--sage); }
+
+/* ── Main ── */
+.main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+/* ── KPI row ── */
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 16px; margin-bottom: 28px; }
+.kpi-card {
+  background: white; border: 1px solid rgba(0,0,0,0.07); border-radius: 8px;
+  padding: 20px 20px 16px; position: relative; overflow: hidden;
+  transition: box-shadow 0.2s; animation: fadeUp 0.4s ease both;
+}
+.kpi-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--moss); }
+.kpi-card.accent-amber::before { background: var(--amber); }
+.kpi-card.accent-fern::before  { background: var(--fern);  }
+.kpi-card.accent-bark::before  { background: var(--bark);  }
+.kpi-card.accent-sage::before  { background: var(--sage);  }
+.kpi-label { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--mid); margin-bottom: 8px; }
+.kpi-value { font-family: 'Fraunces', serif; font-size: 36px; font-weight: 700; color: var(--forest); line-height: 1; margin-bottom: 4px; }
+.kpi-sub   { font-size: 12px; color: var(--mid); }
+
+/* ── Chart grids ── */
+.chart-grid { display: grid; gap: 20px; margin-bottom: 20px; }
+.cols-1 { grid-template-columns: 1fr; }
+.cols-2 { grid-template-columns: 1fr 1fr; }
+.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+@media (max-width: 1100px) { .cols-4 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px)  { .cols-2, .cols-3, .cols-4 { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: white; border: 1px solid rgba(0,0,0,0.07); border-radius: 8px;
+  padding: 24px; animation: fadeUp 0.5s ease both;
+}
+.chart-title    { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 300; color: var(--forest); margin-bottom: 4px; }
+.chart-subtitle { font-size: 12px; color: var(--mid); margin-bottom: 20px; }
+.chart-wrap       { position: relative; height: 220px; }
+.chart-wrap.tall  { height: 300px; }
+.chart-wrap.short { height: 220px; }
+
+/* ── Device/Browser bar charts ── */
+.hbar-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.hbar-item { display: flex; align-items: center; gap: 10px; }
+.hbar-label { font-size: 12px; color: var(--ink); min-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hbar-track { flex: 1; height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden; }
+.hbar-fill  { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.hbar-count { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); min-width: 40px; text-align: right; }
+.hbar-pct   { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); min-width: 38px; text-align: right; }
+
+/* ── Period table ── */
+.monthly-table { width: 100%; border-collapse: collapse; }
+.monthly-table th {
+  font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--mid); text-align: right;
+  padding: 10px 14px; border-bottom: 1.5px solid rgba(0,0,0,0.1);
+}
+.monthly-table th:first-child { text-align: left; }
+.monthly-table td { font-size: 13px; padding: 10px 14px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.05); }
+.monthly-table td:first-child { text-align: left; font-weight: 500; color: var(--forest); }
+.monthly-table tr:hover td { background: rgba(0,0,0,0.02); }
+.monthly-table tr:last-child td { border-bottom: none; }
+.ratio-badge { display: inline-block; font-family: 'DM Mono', monospace; font-size: 11px; background: var(--mist); color: var(--forest); padding: 2px 7px; border-radius: 3px; }
+.q-row td { background: var(--cream) !important; font-weight: 600; border-top: 1.5px solid rgba(0,0,0,0.1); }
+.q-row td:first-child { font-family: 'DM Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--bark); }
+
+/* ── Depth table ── */
+.depth-table { width: 100%; border-collapse: collapse; }
+.depth-table th {
+  font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--mid); text-align: left;
+  padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.depth-table td { font-size: 13px; padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+.depth-table tr:last-child td { border-bottom: none; }
+.depth-bar-bg   { height: 6px; background: rgba(0,0,0,0.06); border-radius: 3px; overflow: hidden; }
+.depth-bar-fill { height: 100%; background: var(--sage); border-radius: 3px; }
+
+/* ── PG grid ── */
+.pg-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.pg-chip { display: flex; align-items: center; gap: 8px; background: var(--paper); border: 1px solid rgba(0,0,0,0.08); border-radius: 4px; padding: 6px 12px; font-size: 12px; flex: 1; min-width: 200px; }
+.pg-chip-name  { flex: 1; color: var(--ink); font-weight: 500; }
+.pg-chip-count { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--forest); font-weight: 500; }
+.pg-chip-bar   { width: 60px; height: 4px; background: rgba(0,0,0,0.08); border-radius: 2px; overflow: hidden; }
+.pg-chip-fill  { height: 100%; background: var(--sage); border-radius: 2px; }
+
+/* ── Campaign table ── */
+.campaign-table { width: 100%; border-collapse: collapse; }
+.campaign-table th { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--mid); text-align: right; padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+.campaign-table th:first-child { text-align: left; }
+.campaign-table td { font-size: 12px; padding: 8px 12px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.05); }
+.campaign-table td:first-child { text-align: left; }
+.campaign-table tr:hover td { background: rgba(0,0,0,0.02); }
+.campaign-table tr:last-child td { border-bottom: none; }
+
+/* ── Outlier toggle ── */
+.outlier-toggle {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;
+}
+.outlier-toggle input { display: none; }
+.outlier-track {
+  width: 32px; height: 18px; background: rgba(0,0,0,0.15); border-radius: 9px;
+  position: relative; transition: background 0.2s; flex-shrink: 0;
+}
+.outlier-toggle input:checked + .outlier-track { background: var(--sage); }
+.outlier-thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; background: white; border-radius: 50%;
+  transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.outlier-toggle input:checked + .outlier-track .outlier-thumb { transform: translateX(14px); }
+.outlier-text { font-size: 12px; color: var(--ink); white-space: nowrap; }
+.outlier-threshold {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  background: var(--mist); color: var(--forest);
+  padding: 1px 6px; border-radius: 3px; margin-left: 2px;
+}
+
+/* ── Outlier notice in depth table ── */
+.outlier-notice {
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid);
+  background: var(--cream); border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 4px; padding: 6px 10px; margin-bottom: 12px;
+  display: none;
+}
+.outlier-notice.visible { display: block; }
+.outlier-notice a { color: var(--bark); cursor: pointer; text-decoration: underline; }
+
+/* ── GA4 panel ── */
+.ga4-panel {
+  background: var(--paper); border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 8px; overflow: hidden;
+}
+.ga4-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; cursor: pointer; user-select: none;
+  transition: background 0.15s;
+}
+.ga4-panel-header:hover { background: rgba(0,0,0,0.03); }
+.ga4-panel-title {
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Fraunces', serif; font-size: 16px; font-weight: 300; color: var(--forest);
+}
+.ga4-panel-icon { font-size: 16px; }
+.ga4-panel-chevron {
+  font-size: 11px; color: var(--mid); transition: transform 0.2s;
+  font-family: 'DM Mono', monospace;
+}
+.ga4-panel.open .ga4-panel-chevron { transform: rotate(180deg); }
+.ga4-panel-body { display: none; padding: 0 20px 20px; }
+.ga4-panel.open .ga4-panel-body { display: block; }
+
+.ga4-note {
+  font-size: 12px; color: var(--mid); line-height: 1.5;
+  margin-bottom: 16px; padding: 10px 12px;
+  background: white; border-radius: 5px; border-left: 3px solid var(--amber);
+}
+.ga4-note strong { color: var(--bark); }
+
+.ga4-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.ga4-month-input {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.ga4-month-label {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--mid);
+}
+.ga4-month-field {
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  border: 1px solid rgba(0,0,0,0.15); border-radius: 4px;
+  padding: 6px 8px; background: white; color: var(--ink);
+  width: 100%; outline: none;
+}
+.ga4-month-field:focus { border-color: var(--sage); }
+.ga4-month-field::placeholder { color: rgba(0,0,0,0.25); }
+
+.ga4-adblock-row {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 12px 14px; background: white; border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.ga4-adblock-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.ga4-adblock-label { font-size: 13px; color: var(--ink); white-space: nowrap; }
+.ga4-adblock-sublabel { font-size: 11px; color: var(--mid); }
+.ga4-slider-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px; }
+.ga4-slider {
+  flex: 1; -webkit-appearance: none; height: 4px;
+  background: rgba(0,0,0,0.12); border-radius: 2px; outline: none; cursor: pointer;
+}
+.ga4-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px;
+  border-radius: 50%; background: var(--sage);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer;
+}
+.ga4-slider:disabled { opacity: 0.35; cursor: not-allowed; }
+.ga4-slider:disabled::-webkit-slider-thumb { cursor: not-allowed; }
+.ga4-pct-badge {
+  font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+  background: var(--mist); color: var(--forest); padding: 2px 8px;
+  border-radius: 3px; min-width: 42px; text-align: center;
+}
+.ga4-pct-badge.active { background: var(--moss); color: white; }
+
+/* ── GA4 conversion rate columns in period table ── */
+.cvr-cell { color: var(--moss); font-family: 'DM Mono', monospace; font-size: 12px; }
+.cvr-cell.adjusted { color: var(--bark); }
+.views-cell { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--mid); }
+th.ga4-col { color: var(--bark) !important; }
+
+/* ── Cache restore banner ── */
+.cache-banner {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #fffbea; border: 1px solid var(--amber);
+  border-radius: 7px; padding: 14px 18px; margin-bottom: 20px;
+  animation: fadeUp 0.3s ease both;
+}
+.cache-banner-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.cache-banner-body { flex: 1; }
+.cache-banner-title { font-size: 13px; font-weight: 500; color: var(--ink); margin-bottom: 3px; }
+.cache-banner-sub   { font-size: 12px; color: var(--mid); line-height: 1.5; }
+.cache-banner-actions { display: flex; gap: 8px; margin-top: 10px; }
+.cache-btn {
+  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.06em;
+  border-radius: 4px; padding: 5px 14px; cursor: pointer; border: 1px solid;
+  transition: all 0.15s;
+}
+.cache-btn-import { background: var(--moss); color: white; border-color: var(--moss); }
+.cache-btn-import:hover { background: var(--forest); border-color: var(--forest); }
+.cache-btn-dismiss { background: transparent; color: var(--mid); border-color: rgba(0,0,0,0.15); }
+.cache-btn-dismiss:hover { border-color: var(--mid); color: var(--ink); }
+
+/* ── Toast notification ── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: var(--forest); color: var(--cream);
+  font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.04em;
+  padding: 10px 18px; border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  animation: toastIn 0.3s ease both;
+  display: flex; align-items: center; gap: 8px;
+}
+.toast.out { animation: toastOut 0.3s ease forwards; }
+@keyframes toastIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes toastOut { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(10px); } }
+
+/* ── Animations ── */
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--mist); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ UPLOAD ══════════════════ -->
+<div id="upload-screen">
+  <div class="upload-inner">
+    <div class="upload-badge">Engaging Networks · Transaction Export</div>
+    <h1 class="upload-title">4Site's Opt-In Ladder<br><em>Analytics Visualizer</em></h1>
+    <p class="upload-sub">Upload your Engaging Networks export of the Opt-in Ladder Transactions to visualize participation, opt-in depth, and conversion trends.</p>
+    <div class="drop-zone" id="drop-zone">
+      <span class="drop-icon">🌿</span>
+      <p class="drop-label"><strong>Drop your CSV here</strong> or click to browse</p>
+      <p class="drop-hint">Engaging Networks Transaction export · any client</p>
+    </div>
+    <input type="file" id="file-input" accept=".csv">
+    <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="parse-status" id="parse-status"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ DASHBOARD ══════════════════ -->
+<div id="dashboard">
+  <div class="top-bar">
+    <div class="top-bar-title"><span class="logo">4Site's Opt-In <span>Ladder</span> · Analytics Visualizer</span></div>
+    <div class="top-bar-meta" id="top-bar-meta"></div>
+    <button class="btn-reset" onclick="resetDashboard()">↩ New File</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Period</span>
+      <select class="filter-select" id="filter-period" onchange="applyFilters()"><option value="all">All Time</option></select>
+    </div>
+    <div class="filter-group" id="filter-source-group" style="display:none;">
+      <span class="filter-label">Source</span>
+      <select class="filter-select" id="filter-source" onchange="applyFilters()"><option value="all">All Sources</option></select>
+    </div>
+    <div class="filter-group" id="filter-campaign-group" style="display:none;">
+      <span class="filter-label">Campaign</span>
+      <select class="filter-select" id="filter-campaign" onchange="applyFilters()"><option value="all">All Campaigns</option></select>
+    </div>
+    <!-- Device filter — only shown when CD32 present -->
+    <div class="filter-group" id="filter-device-group" style="display:none;">
+      <span class="filter-label">Device</span>
+      <select class="filter-select" id="filter-device" onchange="applyFilters()">
+        <option value="all">All Devices</option>
+        <option value="Desktop">Desktop</option>
+        <option value="Mobile">Mobile</option>
+        <option value="Tablet">Tablet</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">View</span>
+      <select class="filter-select" id="filter-granularity" onchange="applyFilters()">
+        <option value="monthly">Monthly</option>
+        <option value="quarterly">Quarterly</option>
+      </select>
+    </div>
+    <!-- Outlier filter — always shown once data is loaded -->
+    <div class="filter-group" id="filter-outlier-group" style="display:none;">
+      <label class="outlier-toggle" id="outlier-label">
+        <input type="checkbox" id="outlier-toggle" checked onchange="applyFilters();saveCache()">
+        <span class="outlier-track"><span class="outlier-thumb"></span></span>
+        <span class="outlier-text">Exclude outliers <span class="outlier-threshold" id="outlier-threshold-badge"></span></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="main" id="main-content"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  State
+// ════════════════════════════════════════════════
+let allRows      = [];
+let filteredRows = [];
+let charts       = {};
+let activePgCols = [];
+
+// Outlier filtering state
+let outlierThreshold = Infinity;   // max allowed depth per supporter; set after parse
+let outlierExcluded  = 0;          // count of supporter IDs removed at current threshold
+
+// GA4 pageview state
+const ga4Views = {};               // key: 'YYYY-MM', value: raw GA4 view count (number)
+const AD_BLOCK_DEFAULT = 25;       // % undercount default for US nonprofit audiences
+
+// Cache
+const CACHE_KEY = 'optin_ladder_cache';
+let currentFingerprint = null;     // set after file parsed; used for save/restore matching
+
+const F = {
+  hasPG:          false,
+  hasER2:         false,
+  hasTidyContact: false,
+  hasCampaignID:  false,
+  hasCD32:        false,   // Campaign Data 32 — device/browser string
+};
+
+// ════════════════════════════════════════════════
+//  CD32 parsers
+// ════════════════════════════════════════════════
+function parseCD32(v) {
+  if (!v) return null;
+  const get = key => { const m = v.match(new RegExp(key + ':([^~]+)')); return m ? m[1].trim() : null; };
+  const mobile = get('mobile'), tablet = get('tablet');
+  let deviceType = 'Desktop';
+  if (tablet === 'Y') deviceType = 'Tablet';
+  else if (mobile === 'Y') deviceType = 'Mobile';
+
+  const rawBrowser = get('browser') || '';
+  let browserFamily = 'Other';
+  if (/Mobile Safari|Safari/i.test(rawBrowser))        browserFamily = 'Safari';
+  else if (/Chrome Mobile|Chrome/i.test(rawBrowser))   browserFamily = 'Chrome';
+  else if (/Firefox/i.test(rawBrowser))                browserFamily = 'Firefox';
+  else if (/Edge/i.test(rawBrowser))                   browserFamily = 'Edge';
+  else if (/WebKit/i.test(rawBrowser))                 browserFamily = 'WebKit';
+  else if (rawBrowser)                                 browserFamily = rawBrowser;
+
+  const rawDevice = get('device') || '';
+  let deviceBrand = 'Other';
+  if      (rawDevice === 'APPLE')     deviceBrand = 'Apple';
+  else if (rawDevice === 'MICROSOFT') deviceBrand = 'Microsoft';
+  else if (rawDevice === 'GOOGLE')    deviceBrand = 'Google';
+  else if (rawDevice === 'CONONICAL') deviceBrand = 'Linux';
+  else if (rawDevice)                 deviceBrand = rawDevice;
+
+  const os = get('os') || '';
+
+  return { deviceType, browserFamily, deviceBrand, os, rawBrowser };
+}
+
+// ════════════════════════════════════════════════
+//  Outlier detection
+//  Finds the largest relative-drop between consecutive
+//  occupied depth values, weighted by sequence gaps.
+//  A jump from depth 5 → 13 (gap of 8) with only 1
+//  occurrence scores far higher than a smooth tail.
+// ════════════════════════════════════════════════
+function detectOutlierThreshold(rows) {
+  // Build depth map: supporterID → submission count
+  const depthMap = {};
+  rows.forEach(r => { depthMap[r.supporterID] = (depthMap[r.supporterID] || 0) + 1; });
+
+  // Count how many supporters land at each depth
+  const dist = {};
+  Object.values(depthMap).forEach(d => { dist[d] = (dist[d] || 0) + 1; });
+
+  const sorted = Object.keys(dist).map(Number).sort((a, b) => a - b);
+  if (sorted.length < 2) return Infinity;  // nothing to filter
+
+  let bestThreshold = Infinity;
+  let bestScore     = 0;
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const curr = sorted[i], next = sorted[i + 1];
+    const seqGap  = next - curr;                          // missing depth steps between
+    const relDrop = dist[curr] / Math.max(dist[next], 1); // how much count falls off
+    const score   = relDrop * Math.pow(seqGap, 1.5);      // gaps weighted heavily
+
+    if (score > bestScore && (relDrop > 4 || seqGap > 1)) {
+      bestScore     = score;
+      bestThreshold = curr;
+    }
+  }
+
+  // Add 2 steps of grace so legitimate edge cases aren't clipped
+  return bestThreshold === Infinity ? Infinity : bestThreshold + 2;
+}
+
+function setupOutlierToggle(rows) {
+  outlierThreshold = detectOutlierThreshold(rows);
+
+  // Count how many supporter IDs would be excluded
+  const depthMap = {};
+  rows.forEach(r => { depthMap[r.supporterID] = (depthMap[r.supporterID] || 0) + 1; });
+  const excludedIDs = new Set(
+    Object.entries(depthMap).filter(([, d]) => d > outlierThreshold).map(([id]) => id)
+  );
+  outlierExcluded = excludedIDs.size;
+
+  // Only show toggle if there's actually something to exclude
+  const group = document.getElementById('filter-outlier-group');
+  if (outlierExcluded > 0) {
+    group.style.display = 'flex';
+    document.getElementById('outlier-threshold-badge').textContent = `≤ ${outlierThreshold} steps`;
+    document.getElementById('outlier-toggle').checked = true;
+  } else {
+    group.style.display = 'none';  // nothing to filter, keep it hidden
+  }
+}
+
+// ════════════════════════════════════════════════
+//  Upload
+// ════════════════════════════════════════════════
+const dropZone  = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click',    () => fileInput.click());
+dropZone.addEventListener('dragover', e  => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave',()  => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+
+function setStatus(msg) { document.getElementById('parse-status').textContent = msg; }
+
+function processFile(file) {
+  const pb = document.getElementById('progress-bar');
+  const pf = document.getElementById('progress-fill');
+  pb.style.display = 'block'; setStatus('Reading file…'); pf.style.width = '20%';
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete(results) {
+      pf.style.width = '70%';
+      setStatus(`Parsed ${results.data.length.toLocaleString()} rows…`);
+      setTimeout(() => {
+        processData(results.data, file.name); pf.style.width = '100%';
+        setTimeout(() => {
+          document.getElementById('upload-screen').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+        }, 300);
+      }, 100);
+    },
+    error(err) { setStatus('Error: ' + err.message); }
+  });
+}
+
+// ════════════════════════════════════════════════
+//  Data Processing
+// ════════════════════════════════════════════════
+function processData(data, fileName) {
+  if (!data.length) return;
+  const colNames = Object.keys(data[0]);
+
+  // ── Feature detection ──
+  const allPgCols = colNames.filter(k => k.startsWith('PG '));
+  activePgCols = allPgCols.filter(col => data.some(r => (r[col]||'').trim() === 'Y'));
+  F.hasPG = activePgCols.length > 0;
+
+  F.hasER2 = data.some(r => {
+    const v = (r['External Reference 2']||'').trim().toLowerCase();
+    return v && v !== 'null';
+  });
+
+  F.hasTidyContact = data.some(r => (r['TidyContact Address Record']||'').trim().length > 0);
+  F.hasCampaignID  = data.some(r => (r['Campaign ID']||'').trim().length > 0);
+
+  // CD32: present if column exists AND has parseable device/browser strings
+  F.hasCD32 = data.some(r => {
+    const v = (r['Campaign Data 32']||'').trim();
+    return v && v.includes('mobile:') && v.includes('browser:');
+  });
+
+  // ── Parse rows ──
+  allRows = data.map(r => {
+    const dateStr = (r['Campaign Date']||'').trim();
+    let month = 'Unknown', quarter = 'Unknown', year = 'Unknown';
+    if (dateStr) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        year    = parts[0];
+        month   = `${parts[0]}-${parts[1]}`;
+        quarter = `${parts[0]}-Q${Math.ceil(parseInt(parts[1])/3)}`;
+      }
+    }
+
+    let medium = null;
+    if (F.hasER2) {
+      const v = (r['External Reference 2']||'').toLowerCase().trim();
+      medium = (!v || v === 'null') ? 'Unknown' : v;
+    }
+
+    let srcType = null;
+    if (F.hasTidyContact) {
+      const tc = r['TidyContact Address Record']||'';
+      if (tc) {
+        const m = tc.match(/url:(https?:\/\/[^,}]+)/);
+        if (m) {
+          const u = m[1];
+          if      (u.includes('/donate/'))                                        srcType = 'Donation';
+          else if (u.includes('/action/')||u.includes('/survey/')||
+                   u.includes('/petition/')||u.includes('/tell-a-target/'))      srcType = 'Advocacy';
+          else                                                                    srcType = 'Other';
+        }
+      }
+    }
+
+    const campaignID = F.hasCampaignID ? (r['Campaign ID']||'').trim() : null;
+    const pgProfile  = activePgCols.filter(c => (r[c]||'').trim() === 'Y');
+
+    let cd32 = null;
+    if (F.hasCD32) cd32 = parseCD32((r['Campaign Data 32']||'').trim());
+
+    return { supporterID:(r['Supporter ID']||'').trim(), date:dateStr, month, quarter, year, medium, srcType, campaignID, pgProfile, cd32 };
+  });
+
+  populateFilters();
+  setupOutlierToggle(allRows);
+  buildDashboardShell();
+  buildGA4Inputs();
+  applyFilters();
+
+  // ── Fingerprint this file ──
+  const months = [...new Set(allRows.map(r=>r.month).filter(m=>m!=='Unknown'))].sort();
+  currentFingerprint = `${fileName}|${allRows.length}|${months[0]||''}|${months[months.length-1]||''}`;
+
+  // ── Check cache ──
+  checkAndRestoreCache(currentFingerprint);
+
+  document.getElementById('top-bar-meta').textContent =
+    `${allRows.length.toLocaleString()} submissions · ${[...new Set(allRows.map(r=>r.supporterID))].length.toLocaleString()} supporters`;
+}
+
+// ════════════════════════════════════════════════
+//  Filters
+// ════════════════════════════════════════════════
+function populateFilters() {
+  const months   = [...new Set(allRows.map(r=>r.month).filter(m=>m!=='Unknown'))].sort();
+  const quarters = [...new Set(allRows.map(r=>r.quarter).filter(q=>q!=='Unknown'))].sort();
+  const pSel = document.getElementById('filter-period');
+  pSel.innerHTML = '<option value="all">All Time</option>';
+  quarters.forEach(q => addOpt(pSel,'q:'+q,q));
+  months.forEach(m   => addOpt(pSel,'m:'+m,formatMonth(m)));
+
+  if (F.hasER2) {
+    document.getElementById('filter-source-group').style.display = 'flex';
+    const mediums = [...new Set(allRows.map(r=>r.medium).filter(Boolean))].sort();
+    const sSel = document.getElementById('filter-source');
+    sSel.innerHTML = '<option value="all">All Sources</option>';
+    mediums.forEach(m => addOpt(sSel,m,capitalize(m)));
+  }
+
+  if (F.hasCampaignID) {
+    document.getElementById('filter-campaign-group').style.display = 'flex';
+    const campaigns = [...new Set(allRows.map(r=>r.campaignID).filter(Boolean))].sort();
+    const cSel = document.getElementById('filter-campaign');
+    cSel.innerHTML = '<option value="all">All Campaigns</option>';
+    campaigns.forEach(c => addOpt(cSel, c, c.length>55 ? c.slice(0,55)+'…' : c));
+  }
+
+  if (F.hasCD32) {
+    document.getElementById('filter-device-group').style.display = 'flex';
+  }
+}
+
+function addOpt(sel, value, text) {
+  const o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o);
+}
+
+function applyFilters() {
+  const period        = document.getElementById('filter-period').value;
+  const source        = F.hasER2        ? document.getElementById('filter-source').value   : 'all';
+  const campaign      = F.hasCampaignID ? document.getElementById('filter-campaign').value : 'all';
+  const device        = F.hasCD32       ? document.getElementById('filter-device').value   : 'all';
+  const excludeToggle = document.getElementById('outlier-toggle');
+  const excludeOutliers = excludeToggle ? excludeToggle.checked : false;
+
+  // Build the set of supporter IDs that exceed the outlier threshold
+  // (computed from ALL rows before any other filters, so the threshold stays stable)
+  let outlierIDs = new Set();
+  if (excludeOutliers && outlierThreshold < Infinity) {
+    const depthMap = {};
+    allRows.forEach(r => { depthMap[r.supporterID] = (depthMap[r.supporterID] || 0) + 1; });
+    outlierIDs = new Set(
+      Object.entries(depthMap).filter(([, d]) => d > outlierThreshold).map(([id]) => id)
+    );
+  }
+
+  filteredRows = allRows.filter(r => {
+    if (excludeOutliers && outlierIDs.has(r.supporterID))              return false;
+    if (period !== 'all') {
+      if (period.startsWith('q:') && r.quarter !== period.slice(2))    return false;
+      if (period.startsWith('m:') && r.month   !== period.slice(2))    return false;
+    }
+    if (source   !== 'all' && r.medium     !== source)                 return false;
+    if (campaign !== 'all' && r.campaignID !== campaign)               return false;
+    if (device   !== 'all' && (!r.cd32 || r.cd32.deviceType !== device)) return false;
+    return true;
+  });
+
+  renderKPIs();
+  renderCharts();
+  renderTable();
+  renderDepthTable(excludeOutliers ? outlierIDs.size : 0);
+  if (F.hasPG)         renderPGGrid();
+  if (F.hasCampaignID) renderCampaignTable();
+  if (F.hasCD32)       renderDeviceBrowserSection();
+}
+
+// ════════════════════════════════════════════════
+//  GA4 Panel
+// ════════════════════════════════════════════════
+function toggleGA4Panel() {
+  document.getElementById('ga4-panel').classList.toggle('open');
+}
+
+function buildGA4Inputs() {
+  // Collect all unique months from allRows
+  const months = [...new Set(allRows.map(r => r.month).filter(m => m !== 'Unknown'))].sort();
+  const container = document.getElementById('ga4-inputs');
+  container.innerHTML = months.map(m => `
+    <div class="ga4-month-input">
+      <label class="ga4-month-label" for="ga4-${m}">${formatMonth(m)}</label>
+      <input class="ga4-month-field" id="ga4-${m}" type="text" inputmode="numeric"
+             placeholder="e.g. 12,400" value="${ga4Views[m] != null ? ga4Views[m].toLocaleString() : ''}"
+             onchange="onGA4Input('${m}', this.value)" onblur="onGA4Input('${m}', this.value)">
+    </div>`
+  ).join('');
+}
+
+function onGA4Input(month, raw) {
+  const n = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+  if (!isNaN(n) && n > 0) {
+    ga4Views[month] = n;
+    const el = document.getElementById(`ga4-${month}`);
+    if (el) el.value = n.toLocaleString();
+  } else {
+    delete ga4Views[month];
+  }
+  renderTable();
+  saveCache();
+}
+
+function onAdblockToggle() {
+  const on = document.getElementById('adblock-toggle').checked;
+  document.getElementById('adblock-slider').disabled = !on;
+  document.getElementById('adblock-pct-badge').classList.toggle('active', on);
+  renderTable();
+  saveCache();
+}
+
+function onAdblockSlider() {
+  const pct = document.getElementById('adblock-slider').value;
+  document.getElementById('adblock-pct-badge').textContent = `+${pct}%`;
+  renderTable();
+  saveCache();
+}
+
+function hasAnyGA4Data() {
+  return Object.keys(ga4Views).length > 0;
+}
+
+// ════════════════════════════════════════════════
+//  Cache — save/restore user adjustments
+// ════════════════════════════════════════════════
+function buildCachePayload() {
+  return {
+    fingerprint:    currentFingerprint,
+    outlierEnabled: document.getElementById('outlier-toggle')?.checked ?? true,
+    ga4Views:       {...ga4Views},
+    adblockOn:      document.getElementById('adblock-toggle')?.checked ?? false,
+    adblockPct:     parseInt(document.getElementById('adblock-slider')?.value || AD_BLOCK_DEFAULT, 10),
+    savedAt:        Date.now(),
+  };
+}
+
+function saveCache() {
+  if (!currentFingerprint) return;
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(buildCachePayload())); } catch(e) {}
+}
+
+function applyRestoredCache(cached) {
+  // Outlier toggle
+  const tog = document.getElementById('outlier-toggle');
+  if (tog) { tog.checked = cached.outlierEnabled; }
+
+  // GA4 views — populate state and re-render inputs + table
+  Object.keys(ga4Views).forEach(k => delete ga4Views[k]);
+  Object.entries(cached.ga4Views||{}).forEach(([k,v]) => { ga4Views[k] = v; });
+  buildGA4Inputs();   // re-render inputs with restored values
+
+  // Adblock toggle + slider
+  const adTog = document.getElementById('adblock-toggle');
+  const adSlider = document.getElementById('adblock-slider');
+  const adBadge  = document.getElementById('adblock-pct-badge');
+  if (adTog) {
+    adTog.checked = cached.adblockOn;
+    if (adSlider) {
+      adSlider.disabled = !cached.adblockOn;
+      adSlider.value    = cached.adblockPct;
+    }
+    if (adBadge) {
+      adBadge.textContent = `+${cached.adblockPct}%`;
+      adBadge.classList.toggle('active', cached.adblockOn);
+    }
+  }
+
+  // Re-run filters + table with restored state
+  applyFilters();
+}
+
+function checkAndRestoreCache(fingerprint) {
+  let cached;
+  try { cached = JSON.parse(localStorage.getItem(CACHE_KEY)); } catch(e) { return; }
+  if (!cached) return;
+
+  if (cached.fingerprint === fingerprint) {
+    // Exact match — silently restore and show toast
+    applyRestoredCache(cached);
+    showToast('✓ Settings restored from last session');
+  } else {
+    // Mismatch — show banner asking user
+    showCacheMismatchBanner(cached, fingerprint);
+  }
+}
+
+function showCacheMismatchBanner(cached, currentFp) {
+  const container = document.getElementById('main-content');
+  if (!container) return;
+
+  // Parse saved filename from fingerprint for display
+  const savedFile = (cached.fingerprint||'').split('|')[0] || 'a previous file';
+  const savedDate = cached.savedAt
+    ? new Date(cached.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+    : 'recently';
+
+  const banner = document.createElement('div');
+  banner.className = 'cache-banner';
+  banner.id = 'cache-banner';
+  banner.innerHTML = `
+    <div class="cache-banner-icon">⚠️</div>
+    <div class="cache-banner-body">
+      <div class="cache-banner-title">Saved settings found — file doesn't match exactly</div>
+      <div class="cache-banner-sub">
+        Settings were saved from <strong>${savedFile}</strong> on ${savedDate}.
+        This file has a different name or row count. You can import the saved GA4 data,
+        ad blocker settings, and outlier preference anyway, or start fresh.
+      </div>
+      <div class="cache-banner-actions">
+        <button class="cache-btn cache-btn-import" onclick="importMismatchedCache()">Import settings anyway</button>
+        <button class="cache-btn cache-btn-dismiss" onclick="dismissCacheBanner()">Start fresh</button>
+      </div>
+    </div>
+  `;
+  container.insertBefore(banner, container.firstChild);
+
+  // Store cached data temporarily for the import action
+  window._pendingCache = cached;
+}
+
+function importMismatchedCache() {
+  if (window._pendingCache) {
+    applyRestoredCache(window._pendingCache);
+    window._pendingCache = null;
+  }
+  dismissCacheBanner();
+  showToast('✓ Settings imported from previous file');
+}
+
+function dismissCacheBanner() {
+  const b = document.getElementById('cache-banner');
+  if (b) b.remove();
+  window._pendingCache = null;
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span>${msg}</span>`;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.classList.add('out');
+    setTimeout(() => t.remove(), 320);
+  }, 3500);
+}
+
+// ════════════════════════════════════════════════
+//  Dashboard Shell
+// ════════════════════════════════════════════════
+function buildDashboardShell() {
+  const extraMid = (F.hasER2 ? 1 : 0) + (F.hasTidyContact ? 1 : 0);
+  const midCols  = extraMid + 1;
+  const midClass = ['cols-1','cols-1','cols-2','cols-3'][Math.min(midCols,3)];
+
+  document.getElementById('main-content').innerHTML = `
+
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <!-- Combined timeseries with ratio overlay -->
+    <div class="chart-card" style="margin-bottom:20px;animation-delay:0.1s">
+      <div class="chart-title">Participation Over Time</div>
+      <div class="chart-subtitle">Unique participants and total opt-ins by period — line shows depth ratio (right axis)</div>
+      <div class="chart-wrap tall"><canvas id="chart-timeseries"></canvas></div>
+    </div>
+
+    <!-- Conditional: source, page type, depth dist -->
+    <div class="chart-grid ${midClass}" style="animation-delay:0.15s">
+      ${F.hasER2 ? `
+      <div class="chart-card" style="animation-delay:0.15s">
+        <div class="chart-title">Traffic Source Mix</div>
+        <div class="chart-subtitle">Where supporters arrived from (utm_medium)</div>
+        <div class="chart-wrap"><canvas id="chart-source"></canvas></div>
+      </div>` : ''}
+      ${F.hasTidyContact ? `
+      <div class="chart-card" style="animation-delay:0.2s">
+        <div class="chart-title">Source Page Type</div>
+        <div class="chart-subtitle">Donation vs Advocacy thank-you page as ladder entry point</div>
+        <div class="chart-wrap"><canvas id="chart-srctype"></canvas></div>
+      </div>` : ''}
+      <div class="chart-card" style="animation-delay:${F.hasER2||F.hasTidyContact?'0.25s':'0.15s'}">
+        <div class="chart-title">Ladder Depth Distribution</div>
+        <div class="chart-subtitle">How many opt-in steps each participant completed</div>
+        <div class="chart-wrap"><canvas id="chart-depth-dist"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Device & Browser section — only when CD32 present -->
+    ${F.hasCD32 ? `
+    <div id="device-browser-section">
+      <!-- Device type hbar + Browser family + Device Brand — all three as hbar lists -->
+      <div class="chart-grid cols-3">
+        <div class="chart-card" style="animation-delay:0.2s">
+          <div class="chart-title">Device Type</div>
+          <div class="chart-subtitle">Desktop, Mobile, and Tablet share of opt-ins</div>
+          <div class="chart-wrap short"><canvas id="chart-device-type"></canvas></div>
+        </div>
+        <div class="chart-card" style="animation-delay:0.25s">
+          <div class="chart-title">Browser Family</div>
+          <div class="chart-subtitle">Chrome, Safari, Firefox and other browsers</div>
+          <div class="hbar-list" id="hbar-browser" style="margin-top:4px;"></div>
+        </div>
+        <div class="chart-card" style="animation-delay:0.3s">
+          <div class="chart-title">Device Brand</div>
+          <div class="chart-subtitle">Apple, Microsoft, Google and other hardware</div>
+          <div class="hbar-list" id="hbar-brand" style="margin-top:4px;"></div>
+        </div>
+      </div>
+
+      <!-- Device type over time -->
+      <div class="chart-card" style="animation-delay:0.35s">
+        <div class="chart-title">Device Type Over Time</div>
+        <div class="chart-subtitle">Mobile vs Desktop vs Tablet share of opt-in submissions by period</div>
+        <div class="chart-wrap"><canvas id="chart-device-time"></canvas></div>
+      </div>
+    </div>` : ''}
+
+    <!-- Period breakdown table — includes GA4 input section -->
+    <div class="chart-card" style="animation-delay:0.35s">
+      <div class="chart-title">Period Breakdown</div>
+      <div class="chart-subtitle" id="period-table-subtitle">Participants, opt-ins, and depth ratio — months grouped under quarters</div>
+
+      <!-- GA4 pageview input — embedded, collapsible -->
+      <div class="ga4-panel" id="ga4-panel" style="margin:16px 0 0;border-radius:6px;">
+        <div class="ga4-panel-header" onclick="toggleGA4Panel()">
+          <div class="ga4-panel-title">
+            <span class="ga4-panel-icon">📊</span>
+            Add GA4 Pageview Data
+            <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);margin-left:4px;">optional · unlocks conversion rate columns</span>
+          </div>
+          <span class="ga4-panel-chevron">▼</span>
+        </div>
+        <div class="ga4-panel-body">
+          <div class="ga4-note">
+            <strong>⚠ Ad blocker caveat:</strong> GA4 uses client-side tracking, which is blocked by ad blockers and privacy tools (uBlock Origin, Brave, Firefox Enhanced Tracking Protection, Safari ITP). Your reported pageview counts may understate true traffic — typically by <strong>15–35%</strong> for nonprofit audiences. Use the adjustment toggle below to apply a correction factor.
+          </div>
+          <div class="ga4-grid" id="ga4-inputs"></div>
+          <div class="ga4-adblock-row">
+            <div class="ga4-adblock-toggle-wrap">
+              <label class="outlier-toggle">
+                <input type="checkbox" id="adblock-toggle" onchange="onAdblockToggle()">
+                <span class="outlier-track"><span class="outlier-thumb"></span></span>
+              </label>
+              <div>
+                <div class="ga4-adblock-label">Ad blocker correction</div>
+                <div class="ga4-adblock-sublabel">Inflate GA4 views to estimate true traffic</div>
+              </div>
+            </div>
+            <div class="ga4-slider-wrap">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);">+0%</span>
+              <input type="range" class="ga4-slider" id="adblock-slider" min="0" max="60" value="25" step="1" disabled oninput="onAdblockSlider()">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);">+60%</span>
+              <span class="ga4-pct-badge" id="adblock-pct-badge">+25%</span>
+            </div>
+            <div style="font-size:11px;color:var(--mid);max-width:260px;line-height:1.4;">
+              Industry avg for US nonprofits: ~<strong>25%</strong> undercount. Ranges from 15% (older audiences) to 35%+ (advocacy / tech-savvy audiences). Source: GWI / Blockthrough 2024.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto; margin-top:16px;">
+        <table class="monthly-table" id="period-table">
+          <thead id="period-table-head">
+            <tr>
+              <th>Period</th><th>Participants</th><th>Total Opt-Ins</th>
+              <th>Depth Ratio</th><th>1-Step %</th><th>2+ Steps %</th>
+            </tr>
+          </thead>
+          <tbody id="period-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Depth detail + PG -->
+    <div class="chart-grid ${F.hasPG ? 'cols-2' : 'cols-1'}" style="margin-top:20px;">
+      <div class="chart-card" style="animation-delay:0.4s">
+        <div class="chart-title">Opt-In Depth Breakdown</div>
+        <div class="chart-subtitle">Distribution of steps completed per participant</div>
+        <div class="outlier-notice" id="outlier-notice"></div>
+        <table class="depth-table" style="margin-top:8px;">
+          <thead><tr><th>Steps</th><th>Participants</th><th>% of Total</th><th style="width:35%"></th></tr></thead>
+          <tbody id="depth-table-body"></tbody>
+        </table>
+      </div>
+      ${F.hasPG ? `
+      <div class="chart-card" style="animation-delay:0.4s">
+        <div class="chart-title">Preference Group (PG) Distribution</div>
+        <div class="chart-subtitle">Which opt-in groups supporters are enrolled in</div>
+        <div style="max-height:340px;overflow-y:auto;margin-top:8px;">
+          <div class="pg-grid" id="pg-grid"></div>
+        </div>
+      </div>` : ''}
+    </div>
+
+    <!-- Campaign breakdown -->
+    ${F.hasCampaignID ? `
+    <div class="chart-card" style="margin-top:20px;animation-delay:0.45s">
+      <div class="chart-title">Campaign Breakdown</div>
+      <div class="chart-subtitle">Opt-in volume and depth ratio by campaign</div>
+      <div style="overflow-x:auto;max-height:380px;overflow-y:auto;margin-top:16px;">
+        <table class="campaign-table">
+          <thead><tr><th>Campaign</th><th>Participants</th><th>Opt-Ins</th><th>Depth Ratio</th></tr></thead>
+          <tbody id="campaign-table-body"></tbody>
+        </table>
+      </div>
+    </div>` : ''}
+
+    <div style="height:32px;"></div>
+  `;
+}
+
+// ════════════════════════════════════════════════
+//  Helpers
+// ════════════════════════════════════════════════
+function formatMonth(m) {
+  const [y,mo] = m.split('-');
+  return new Date(parseInt(y),parseInt(mo)-1,1).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+}
+function capitalize(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+function fmt(n) { return Number(n).toLocaleString(); }
+
+function getDepthMap(rows) {
+  const c = {};
+  rows.forEach(r => { c[r.supporterID] = (c[r.supporterID]||0)+1; });
+  return c;
+}
+
+function getPeriodData() {
+  const gran = document.getElementById('filter-granularity').value;
+  const key  = gran === 'quarterly' ? 'quarter' : 'month';
+  const byP  = {};
+  filteredRows.forEach(r => {
+    const p = r[key]; if (p==='Unknown') return;
+    (byP[p] = byP[p]||[]).push(r);
+  });
+  return Object.keys(byP).sort().map(p => {
+    const rows = byP[p], unique = new Set(rows.map(r=>r.supporterID)).size, total = rows.length;
+    const depths = Object.values(getDepthMap(rows));
+    return {
+      period:p, label:gran==='quarterly'?p:formatMonth(p),
+      participants:unique, optins:total,
+      ratio:unique>0?+(total/unique).toFixed(2):0,
+      oneStepPct:  unique>0?+((depths.filter(d=>d===1).length/unique)*100).toFixed(1):0,
+      multiStepPct:unique>0?+((depths.filter(d=>d> 1).length/unique)*100).toFixed(1):0,
+    };
+  });
+}
+
+// ════════════════════════════════════════════════
+//  KPIs
+// ════════════════════════════════════════════════
+function renderKPIs() {
+  const unique   = new Set(filteredRows.map(r=>r.supporterID)).size;
+  const total    = filteredRows.length;
+  const depths   = Object.values(getDepthMap(filteredRows));
+  const multi    = depths.filter(d=>d>1).length;
+  const avgDepth = depths.length>0?(depths.reduce((a,b)=>a+b,0)/depths.length).toFixed(1):'0.0';
+  const ratio    = unique>0?(total/unique).toFixed(2):'0.00';
+  const multiPct = unique>0?((multi/unique)*100).toFixed(1):'0.0';
+
+  const kpis = [
+    {label:'Unique Participants',value:fmt(unique),      sub:'supporters who engaged',   accent:''},
+    {label:'Total Opt-Ins',      value:fmt(total),       sub:'submissions to ladder',    accent:'accent-amber'},
+    {label:'Depth Ratio',        value:ratio+'×',        sub:'opt-ins per participant',  accent:'accent-fern'},
+    {label:'Multi-Step %',       value:multiPct+'%',     sub:'took 2 or more opt-ins',   accent:'accent-bark'},
+  ];
+
+  if (F.hasER2) {
+    const mc = {};
+    filteredRows.forEach(r => { if(r.medium) mc[r.medium]=(mc[r.medium]||0)+1; });
+    const top = Object.entries(mc).sort((a,b)=>b[1]-a[1])[0];
+    kpis.push({label:'Top Source',value:top?capitalize(top[0]):'—',sub:top?fmt(top[1])+' submissions':'',accent:''});
+  }
+
+  if (F.hasCD32) {
+    const mobileCount = filteredRows.filter(r=>r.cd32&&r.cd32.deviceType==='Mobile').length;
+    const mobilePct   = total>0?((mobileCount/total)*100).toFixed(1):'0.0';
+    kpis.push({label:'Mobile Share',value:mobilePct+'%',sub:fmt(mobileCount)+' of opt-ins',accent:''});
+  }
+
+  document.getElementById('kpi-row').innerHTML = kpis.map((k,i) =>
+    `<div class="kpi-card ${k.accent}" style="animation-delay:${i*0.05}s">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════════
+//  Charts
+// ════════════════════════════════════════════════
+const PAL = {forest:'#1a3a2a',moss:'#2d5a40',sage:'#4a7c59',fern:'#6fa37f',
+             mist:'#c8ddd0',amber:'#d4a017',gold:'#f2c84b',bark:'#8b6914'};
+const BASE = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false}},
+  scales:{
+    x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10},color:'#6b7066'}},
+    y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:'DM Mono',size:10},color:'#6b7066'}}
+  }
+};
+
+function dc(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function hbar(containerId, entries, color) {
+  const el = document.getElementById(containerId); if(!el) return;
+  const total = entries.reduce((a,[,v])=>a+v,0);
+  const max   = entries.length>0?entries[0][1]:1;
+  el.innerHTML = entries.map(([label,count]) =>
+    `<div class="hbar-item">
+      <span class="hbar-label" title="${label}">${label}</span>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${(count/max)*100}%;background:${color}"></div></div>
+      <span class="hbar-count">${fmt(count)}</span>
+      <span class="hbar-pct">${total>0?((count/total)*100).toFixed(1):0}%</span>
+    </div>`
+  ).join('');
+}
+
+function renderCharts() {
+  const pd = getPeriodData();
+  const labels = pd.map(d=>d.label);
+
+  // Combined: bars for participants + opt-ins, line for depth ratio on secondary axis
+  dc('timeseries');
+  charts['timeseries'] = new Chart(document.getElementById('chart-timeseries'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Total Opt-Ins',       data:pd.map(d=>d.optins),       backgroundColor:'rgba(45,90,64,0.85)',  borderRadius:4, yAxisID:'y',  order:3, hidden:true},
+      {label:'Unique Participants', data:pd.map(d=>d.participants), backgroundColor:'rgba(242,200,75,0.9)', borderRadius:4, yAxisID:'y',  order:2},
+      {label:'Depth Ratio',         data:pd.map(d=>d.ratio),        type:'line',
+       borderColor:PAL.bark, backgroundColor:'rgba(139,105,20,0.08)',
+       pointBackgroundColor:PAL.amber, pointRadius:4, pointHoverRadius:6,
+       fill:true, tension:0.3, yAxisID:'y2', order:1, hidden:true},
+    ]},
+    options:{
+      ...BASE,
+      plugins:{legend:{position:'top',labels:{font:{family:'DM Sans',size:11},boxWidth:12,color:'#6b7066'}}},
+      scales:{
+        x:{...BASE.scales.x},
+        y:{...BASE.scales.y, position:'left'},
+        y2:{position:'right', grid:{display:false},
+            ticks:{font:{family:'DM Mono',size:10},color:PAL.bark, callback:v=>v+'×'},
+            suggestedMin:0}
+      }
+    }
+  });
+
+  if (F.hasER2) {
+    const mc={};
+    filteredRows.forEach(r=>{if(r.medium)mc[capitalize(r.medium)]=(mc[capitalize(r.medium)]||0)+1;});
+    const s=Object.entries(mc).sort((a,b)=>b[1]-a[1]);
+    const total=s.reduce((a,[,v])=>a+v,0);
+    dc('chart-source');
+    charts['chart-source']=new Chart(document.getElementById('chart-source'),{
+      type:'bar',
+      data:{
+        labels:s.map(([k])=>k),
+        datasets:[{
+          data:s.map(([,v])=>v),
+          backgroundColor:[PAL.moss,PAL.amber,PAL.fern,PAL.bark,PAL.mist,'#aaa','#ccc'].slice(0,s.length),
+          borderRadius:4,borderSkipped:false
+        }]
+      },
+      options:{
+        ...BASE,
+        indexAxis:'y',
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{label:ctx=>{
+            const v=ctx.raw;
+            return ` ${fmt(v)}  (${total>0?((v/total)*100).toFixed(1):0}%)`;
+          }}}
+        },
+        scales:{
+          x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:'DM Mono',size:10},color:'#6b7066'}},
+          y:{grid:{display:false},ticks:{font:{family:'DM Sans',size:12},color:'#1c1c1a'}}
+        }
+      }
+    });
+  }
+
+  if (F.hasTidyContact) {
+    const sc={};
+    filteredRows.forEach(r=>{if(r.srcType)sc[r.srcType]=(sc[r.srcType]||0)+1;});
+    const s=Object.entries(sc).sort((a,b)=>b[1]-a[1]);
+    if(s.length>0){
+      const total=s.reduce((a,[,v])=>a+v,0);
+      dc('chart-srctype');
+      charts['chart-srctype']=new Chart(document.getElementById('chart-srctype'),{
+        type:'bar',
+        data:{
+          labels:s.map(([k])=>k),
+          datasets:[{
+            data:s.map(([,v])=>v),
+            backgroundColor:[PAL.moss,PAL.amber,PAL.mist].slice(0,s.length),
+            borderRadius:4,borderSkipped:false
+          }]
+        },
+        options:{
+          ...BASE,
+          indexAxis:'y',
+          plugins:{
+            legend:{display:false},
+            tooltip:{callbacks:{label:ctx=>{
+              const v=ctx.raw;
+              return ` ${fmt(v)}  (${total>0?((v/total)*100).toFixed(1):0}%)`;
+            }}}
+          },
+          scales:{
+            x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:'DM Mono',size:10},color:'#6b7066'}},
+            y:{grid:{display:false},ticks:{font:{family:'DM Sans',size:12},color:'#1c1c1a'}}
+          }
+        }
+      });
+    }
+  }
+
+  dc('depth-dist');
+  const dm=getDepthMap(filteredRows),db={};
+  Object.values(dm).forEach(d=>{const b=d<=10?String(d):'10+';db[b]=(db[b]||0)+1;});
+  const dKeys=[...Array.from({length:10},(_,i)=>String(i+1)),'10+'].filter(k=>db[k]);
+  charts['depth-dist']=new Chart(document.getElementById('chart-depth-dist'),{
+    type:'bar',
+    data:{labels:dKeys.map(l=>l==='1'?'1 step':`${l} steps`),
+          datasets:[{data:dKeys.map(k=>db[k]||0),backgroundColor:dKeys.map((_,i)=>i===0?PAL.amber:PAL.sage),borderRadius:3}]},
+    options:{...BASE,scales:{x:{...BASE.scales.x,ticks:{font:{family:'DM Mono',size:9},color:'#6b7066'}},
+                              y:{...BASE.scales.y,ticks:{font:{family:'DM Mono',size:9},color:'#6b7066'}}}}
+  });
+}
+
+// ════════════════════════════════════════════════
+//  Device & Browser Section (CD32)
+// ════════════════════════════════════════════════
+function renderDeviceBrowserSection() {
+  const cd32Rows = filteredRows.filter(r => r.cd32);
+  const total    = cd32Rows.length;
+  if (!total) return;
+
+  // Count by device type, browser, brand
+  const dtCount = {Desktop:0, Mobile:0, Tablet:0};
+  const bfCount = {}, brandCount = {};
+  cd32Rows.forEach(r => {
+    const {deviceType, browserFamily, deviceBrand} = r.cd32;
+    dtCount[deviceType] = (dtCount[deviceType]||0)+1;
+    bfCount[browserFamily]  = (bfCount[browserFamily] ||0)+1;
+    brandCount[deviceBrand] = (brandCount[deviceBrand]||0)+1;
+  });
+
+  // Device type — Chart.js horizontal bar
+  const dtColors = {Desktop:PAL.moss, Mobile:PAL.fern, Tablet:PAL.amber};
+  const dtSorted = Object.entries(dtCount).sort((a,b)=>b[1]-a[1]);
+  dc('chart-device-type');
+  charts['chart-device-type'] = new Chart(document.getElementById('chart-device-type'), {
+    type: 'bar',
+    data: {
+      labels: dtSorted.map(([k])=>k),
+      datasets: [{
+        data:            dtSorted.map(([,v])=>v),
+        backgroundColor: dtSorted.map(([k])=>dtColors[k]||PAL.sage),
+        borderRadius:    5,
+        borderSkipped:   false,
+      }]
+    },
+    options: {
+      ...BASE,
+      indexAxis: 'y',
+      plugins: {
+        legend: {display:false},
+        tooltip: {callbacks:{label: ctx => {
+          const v = ctx.raw, t = dtSorted.reduce((a,[,n])=>a+n,0);
+          return ` ${fmt(v)}  (${t>0?((v/t)*100).toFixed(1):0}%)`;
+        }}}
+      },
+      scales: {
+        x: {grid:{color:'rgba(0,0,0,0.05)'}, ticks:{font:{family:'DM Mono',size:10},color:'#6b7066'}},
+        y: {grid:{display:false},            ticks:{font:{family:'DM Sans', size:13},color:'#1c1c1a'}}
+      }
+    }
+  });
+
+  // Browser and brand hbars
+  hbar('hbar-browser', Object.entries(bfCount).sort((a,b)=>b[1]-a[1]), PAL.sage);
+  hbar('hbar-brand',   Object.entries(brandCount).sort((a,b)=>b[1]-a[1]), PAL.moss);
+
+  // Device type over time — key kept consistent as 'chart-device-time'
+  dc('chart-device-time');
+  const gran = document.getElementById('filter-granularity').value;
+  const key  = gran === 'quarterly' ? 'quarter' : 'month';
+  const byP  = {};
+  cd32Rows.forEach(r => {
+    const p = r[key]; if(p==='Unknown') return;
+    if(!byP[p]) byP[p]={Desktop:0,Mobile:0,Tablet:0};
+    byP[p][r.cd32.deviceType]=(byP[p][r.cd32.deviceType]||0)+1;
+  });
+  const tLabels = Object.keys(byP).sort();
+  const tLabelsFmt = tLabels.map(p => gran==='quarterly'?p:formatMonth(p));
+
+  charts['chart-device-time'] = new Chart(document.getElementById('chart-device-time'),{
+    type:'bar',
+    data:{
+      labels: tLabelsFmt,
+      datasets:[
+        {label:'Desktop',data:tLabels.map(p=>byP[p].Desktop||0),backgroundColor:'rgba(45,90,64,0.85)', borderRadius:3,stack:'s'},
+        {label:'Mobile', data:tLabels.map(p=>byP[p].Mobile ||0),backgroundColor:'rgba(74,124,89,0.85)', borderRadius:3,stack:'s'},
+        {label:'Tablet', data:tLabels.map(p=>byP[p].Tablet ||0),backgroundColor:'rgba(212,160,23,0.85)',borderRadius:3,stack:'s'},
+      ]
+    },
+    options:{
+      ...BASE,
+      plugins:{legend:{position:'top',labels:{font:{family:'DM Sans',size:11},boxWidth:12,color:'#6b7066'}}},
+      scales:{
+        x:{...BASE.scales.x,stacked:true},
+        y:{...BASE.scales.y,stacked:true}
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════
+//  Period Table
+// ════════════════════════════════════════════════
+function renderTable() {
+  const pd      = getPeriodData();
+  const gran    = document.getElementById('filter-granularity').value;
+  const hasGA4  = hasAnyGA4Data();
+  const adblockOn  = document.getElementById('adblock-toggle')?.checked;
+  const adblockPct = parseInt(document.getElementById('adblock-slider')?.value || AD_BLOCK_DEFAULT, 10);
+  const tbody   = document.getElementById('period-table-body');
+  const thead   = document.getElementById('period-table-head');
+  tbody.innerHTML = '';
+
+  // Update subtitle
+  const subtitle = document.getElementById('period-table-subtitle');
+  if (subtitle) {
+    subtitle.textContent = hasGA4
+      ? 'Participants, opt-ins, depth ratio, and conversion rate vs GA4 pageviews'
+      : 'Participants, opt-ins, and depth ratio — months grouped under quarters';
+  }
+
+  // Build header
+  if (thead) {
+    let extraCols = '';
+    if (hasGA4) {
+      extraCols = `
+        <th class="ga4-col">GA4 Views</th>
+        <th class="ga4-col">Adj. Views${adblockOn ? ` (+${adblockPct}%)` : ''}</th>
+        <th class="ga4-col">CVR (raw)</th>
+        ${adblockOn ? '<th class="ga4-col">CVR (adj.)</th>' : ''}
+      `;
+    }
+    thead.innerHTML = `<tr>
+      <th>Period</th><th>Participants</th><th>Total Opt-Ins</th>
+      <th>Depth Ratio</th><th>1-Step %</th><th>2+ Steps %</th>
+      ${extraCols}
+    </tr>`;
+  }
+
+  function cvrCell(participants, views, cls='') {
+    if (!views) return `<td class="views-cell">—</td>`;
+    const pct = ((participants / views) * 100).toFixed(2);
+    return `<td class="cvr-cell ${cls}">${pct}%</td>`;
+  }
+
+  function viewsCell(raw, adjusted, adblockOn) {
+    if (!raw) return `<td class="views-cell">—</td><td class="views-cell">—</td>`;
+    const adjStr = adblockOn ? fmt(adjusted) : '—';
+    return `<td class="views-cell">${fmt(raw)}</td><td class="views-cell ${adblockOn ? 'adjusted' : ''}">${adjStr}</td>`;
+  }
+
+  function rowCells(d, cls='') {
+    const base = `<td>${d.label}</td><td>${fmt(d.participants)}</td><td>${fmt(d.optins)}</td>
+      <td><span class="ratio-badge">${d.ratio}×</span></td><td>${d.oneStepPct}%</td><td>${d.multiStepPct}%</td>`;
+    if (!hasGA4) return base;
+    const raw  = gran === 'monthly' ? (ga4Views[d.period] ?? null) : null; // quarterly: handled separately
+    const adj  = raw != null ? Math.round(raw * (1 + (adblockOn ? adblockPct : 0) / 100)) : null;
+    return base
+      + viewsCell(raw, adj, adblockOn)
+      + cvrCell(d.participants, raw)
+      + (adblockOn ? cvrCell(d.participants, adj, 'adjusted') : '');
+  }
+
+  function tr(cells, cls='') {
+    const row = document.createElement('tr');
+    if (cls) row.className = cls;
+    row.innerHTML = cells;
+    tbody.appendChild(row);
+  }
+
+  if (gran === 'monthly') {
+    const qMap = {};
+    pd.forEach(d => {
+      const [y, mo] = d.period.split('-');
+      const qk = `${y}-Q${Math.ceil(parseInt(mo) / 3)}`;
+      (qMap[qk] = qMap[qk] || []).push(d);
+    });
+    Object.entries(qMap).sort(([a], [b]) => a.localeCompare(b)).forEach(([qk, months]) => {
+      months.forEach(d => tr(rowCells(d)));
+
+      const qP  = months.reduce((a, b) => a + b.participants, 0);
+      const qO  = months.reduce((a, b) => a + b.optins, 0);
+      const qRatio = qP > 0 ? (qO / qP).toFixed(2) : '0.00';
+      let qExtra = '';
+      if (hasGA4) {
+        const qRaw = months.reduce((sum, d) => sum + (ga4Views[d.period] ?? 0), 0) || null;
+        const qAdj = qRaw != null ? Math.round(qRaw * (1 + (adblockOn ? adblockPct : 0) / 100)) : null;
+        qExtra = viewsCell(qRaw, qAdj, adblockOn)
+          + cvrCell(qP, qRaw)
+          + (adblockOn ? cvrCell(qP, qAdj, 'adjusted') : '');
+      }
+      tr(`<td>${qk} Total</td><td>${fmt(qP)}</td><td>${fmt(qO)}</td>
+          <td><span class="ratio-badge">${qRatio}×</span></td><td>—</td><td>—</td>${qExtra}`, 'q-row');
+    });
+  } else {
+    pd.forEach(d => tr(rowCells(d)));
+  }
+}
+
+// ════════════════════════════════════════════════
+//  Depth Table
+// ════════════════════════════════════════════════
+function renderDepthTable(excludedCount = 0) {
+  // Show/hide the outlier notice
+  const notice = document.getElementById('outlier-notice');
+  if (notice) {
+    if (excludedCount > 0) {
+      notice.textContent = `${excludedCount} supporter${excludedCount > 1 ? 's' : ''} excluded as outliers (depth > ${outlierThreshold} steps). `;
+      const link = document.createElement('a');
+      link.textContent = 'Show all';
+      link.onclick = () => {
+        document.getElementById('outlier-toggle').checked = false;
+        applyFilters();
+      };
+      notice.appendChild(link);
+      notice.classList.add('visible');
+    } else {
+      notice.classList.remove('visible');
+    }
+  }
+
+  const dm=getDepthMap(filteredRows),dc2={};
+  Object.values(dm).forEach(d=>{dc2[d]=(dc2[d]||0)+1;});
+  const tot=Object.values(dc2).reduce((a,b)=>a+b,0), max=Math.max(...Object.values(dc2),1);
+  document.getElementById('depth-table-body').innerHTML=Object.entries(dc2)
+    .sort((a,b)=>parseInt(a[0])-parseInt(b[0]))
+    .map(([depth,count])=>
+      `<tr><td>${depth} step${depth>1?'s':''}</td><td>${fmt(count)}</td>
+       <td>${tot>0?((count/tot)*100).toFixed(1):0}%</td>
+       <td><div class="depth-bar-bg"><div class="depth-bar-fill" style="width:${(count/max)*100}%"></div></div></td></tr>`
+    ).join('');
+}
+
+// ════════════════════════════════════════════════
+//  PG Grid
+// ════════════════════════════════════════════════
+function renderPGGrid() {
+  const pgC={};
+  filteredRows.forEach(r=>r.pgProfile.forEach(pg=>{pgC[pg]=(pgC[pg]||0)+1;}));
+  const sorted=Object.entries(pgC).sort((a,b)=>b[1]-a[1]), max=sorted.length>0?sorted[0][1]:1;
+  document.getElementById('pg-grid').innerHTML=sorted.map(([pg,count])=>
+    `<div class="pg-chip">
+      <span class="pg-chip-name">${pg.replace('PG ','')}</span>
+      <div class="pg-chip-bar"><div class="pg-chip-fill" style="width:${(count/max)*100}%"></div></div>
+      <span class="pg-chip-count">${fmt(count)}</span>
+    </div>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════════
+//  Campaign Table
+// ════════════════════════════════════════════════
+function renderCampaignTable() {
+  const cm={};
+  filteredRows.forEach(r=>{
+    const key=r.campaignID||'(Unknown)';
+    if(!cm[key])cm[key]={sup:new Set(),count:0};
+    cm[key].sup.add(r.supporterID);cm[key].count++;
+  });
+  const sorted=Object.entries(cm)
+    .map(([id,v])=>({id,participants:v.sup.size,optins:v.count,ratio:v.sup.size>0?(v.count/v.sup.size).toFixed(2):'0.00'}))
+    .sort((a,b)=>b.optins-a.optins);
+  document.getElementById('campaign-table-body').innerHTML=sorted.map(c=>
+    `<tr>
+      <td>${c.id.length>65?c.id.slice(0,65)+'…':c.id}</td>
+      <td style="text-align:right">${fmt(c.participants)}</td>
+      <td style="text-align:right">${fmt(c.optins)}</td>
+      <td style="text-align:right"><span class="ratio-badge">${c.ratio}×</span></td>
+    </tr>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════════
+//  Reset
+// ════════════════════════════════════════════════
+function resetDashboard() {
+  document.getElementById('dashboard').style.display     = 'none';
+  document.getElementById('upload-screen').style.display = 'flex';
+  document.getElementById('parse-status').textContent    = '';
+  document.getElementById('progress-bar').style.display  = 'none';
+  document.getElementById('file-input').value            = '';
+  ['filter-source-group','filter-campaign-group','filter-device-group','filter-outlier-group']
+    .forEach(id => document.getElementById(id).style.display='none');
+  allRows=[]; filteredRows=[]; activePgCols=[];
+  outlierThreshold = Infinity; outlierExcluded = 0;
+  currentFingerprint = null;
+  Object.keys(ga4Views).forEach(k => delete ga4Views[k]);
+  Object.keys(F).forEach(k=>F[k]=false);
+  Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
+  try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
+}
+</script>
+</body>
+</html>
