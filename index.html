@@ -1619,15 +1619,20 @@ const SUMMARY_TH_STYLE    = `text-align:left;padding:6px 14px 6px 0;font-weight:
 const SUMMARY_TD_STYLE    = `padding:5px 14px 5px 0;border-bottom:1px solid #e8ede9;font-size:14px;color:#1c1c1a;`;
 const SUMMARY_TD_R_STYLE  = `padding:5px 0;border-bottom:1px solid #e8ede9;font-size:14px;color:#1c1c1a;text-align:right;`;
 
-function summaryTable(headers, rows) {
+// rows: array of cell arrays. Optionally pass rowMeta: array of {bg, color} per row.
+function summaryTable(headers, rows, rowMeta) {
   const ths = headers.map((h,i) =>
     `<th style="${SUMMARY_TH_STYLE}${i>0?'text-align:right;':''}">${h}</th>`
   ).join('');
-  const trs = rows.map(cols =>
-    `<tr>${cols.map((c,i) =>
-      `<td style="${i===0?SUMMARY_TD_STYLE:SUMMARY_TD_R_STYLE}">${c}</td>`
-    ).join('')}</tr>`
-  ).join('');
+  const trs = rows.map((cols, ri) => {
+    const meta = rowMeta?.[ri];
+    const rowBg    = meta?.bg    ? `background:${meta.bg};`    : '';
+    const rowColor = meta?.color ? `color:${meta.color};`      : '';
+    return `<tr style="${rowBg}">${cols.map((c,i) => {
+      const base = i===0 ? SUMMARY_TD_STYLE : SUMMARY_TD_R_STYLE;
+      return `<td style="${base}${rowColor}">${c}</td>`;
+    }).join('')}</tr>`;
+  }).join('');
   return `<table style="${SUMMARY_TABLE_STYLE}"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }
 
@@ -1819,19 +1824,26 @@ function buildExecutiveSummaryHTML() {
     const rows = pd.map(d => {
       const raw  = hasGA4Data ? (ga4Views[d.period] ?? null) : null;
       const adj  = (hasAdj && raw != null) ? Math.round(raw * (1 + adblockPct / 100)) : null;
-      const cvrRaw = (raw != null && raw > 0) ? ((d.participants / raw) * 100).toFixed(2) + '%' : '—';
-      const cvrAdj = (adj != null && adj > 0) ? ((d.participants / adj) * 100).toFixed(2) + '%' : '—';
+      const cvrRawNum = (raw != null && raw > 0) ? (d.participants / raw) * 100 : null;
+      const cvrAdjNum = (adj != null && adj > 0) ? (d.participants / adj) * 100 : null;
+      const cvrRaw = cvrRawNum != null ? cvrRawNum.toFixed(2) + '%' : '—';
+      const cvrAdj = cvrAdjNum != null ? cvrAdjNum.toFixed(2) + '%' : '—';
 
       const cells = [d.label, fmt(d.participants), fmt(d.optins)];
       if (hasGA4Data) cells.push(raw != null ? fmt(raw) : '—');
       if (hasAdj)     cells.push(adj != null ? fmt(adj) : '—');
       if (hasGA4Data) cells.push(cvrRaw);
       if (hasAdj)     cells.push(cvrAdj);
-      return cells;
+
+      // Flag row if CVR exceeds 100% — indicates bad GA4 input
+      const erroneous = (cvrRawNum != null && cvrRawNum > 100) || (cvrAdjNum != null && cvrAdjNum > 100);
+      return { cells, erroneous };
     });
 
+    const rowMeta = rows.map(r => r.erroneous ? {bg:'#fde8e8', color:'#9b1c1c'} : null);
+
     html += sectionHeading('Performance by Period');
-    html += summaryTable(headers, rows);
+    html += summaryTable(headers, rows.map(r => r.cells), rowMeta);
     html += sectionSpacer();
   }
 
