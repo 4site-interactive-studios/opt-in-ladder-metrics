@@ -59,13 +59,13 @@ The dashboard auto-detects which columns are present and shows or hides sections
 - **Total Opt-Ins** — raw submission count
 - **Depth Ratio** — opt-ins ÷ participants (core ladder health metric)
 - **Multi-Step %** — percentage of participants who took 2+ opt-ins
-- **Top Source** — highest volume utm_medium *(requires ER2)*
-- **Mobile Share** — percentage of opt-ins from mobile devices *(requires CD32)*
+- **Top Source** — highest volume utm_medium *(requires External Reference 2)*
+- **Mobile Share** — percentage of opt-ins from mobile devices *(requires Campaign Data 32)*
 
 ### Participation Over Time
 Dual-axis chart. Bars show Unique Participants (gold, default on) and Total Opt-Ins (green, default hidden). Line shows Depth Ratio on the right axis (default hidden). Toggle datasets via the legend.
 
-### Traffic Source Mix *(requires ER2)*
+### Traffic Source Mix *(requires External Reference 2)*
 Horizontal bar chart of opt-in volume by utm_medium value.
 
 ### Source Page Type *(requires TidyContact)*
@@ -74,7 +74,7 @@ Horizontal bar chart — Donation, Advocacy, or Other based on the thank-you pag
 ### Ladder Depth Distribution
 Bar chart showing how many participants completed 1, 2, 3… 10+ opt-in steps. First bar (1 step) is amber; subsequent bars are sage green.
 
-### Device & Browser Section *(requires CD32)*
+### Device & Browser Section *(requires Campaign Data 32)*
 - **Device Type** — horizontal bar chart, Desktop/Mobile/Tablet
 - **Browser Family** — Chrome, Safari, Firefox, Edge, other
 - **Device Brand** — Apple, Microsoft, Google, other
@@ -101,9 +101,9 @@ Table of campaigns sorted by opt-in volume with participants, total opt-ins, and
 | Filter | Always shown | Condition |
 |--------|-------------|-----------|
 | Period | ✅ | Monthly or quarterly |
-| Source | If ER2 present | utm_medium values |
+| Source | If External Reference 2 present | utm_medium values |
 | Campaign | If Campaign ID present | Campaign ID values |
-| Device | If CD32 present | Desktop / Mobile / Tablet |
+| Device | If Campaign Data 32 present | Desktop / Mobile / Tablet |
 | View | ✅ | Monthly / Quarterly granularity |
 | Exclude Outliers | If outliers detected | Toggle with threshold badge |
 
