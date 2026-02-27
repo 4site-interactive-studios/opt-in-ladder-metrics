@@ -1632,7 +1632,11 @@ function summaryTable(headers, rows) {
 }
 
 function sectionHeading(text) {
-  return `<h3 style="margin:28px 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b7066;border-bottom:1px solid #c8ddd0;padding-bottom:6px;">${text}</h3>`;
+  return `<h3 style="margin:28px 0 10px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a3a2a;border-bottom:2px solid #2d5a40;padding-bottom:6px;"><strong>${text}</strong></h3>`;
+}
+
+function sectionSpacer() {
+  return `<p style="margin:0;font-size:14px;line-height:1;">&nbsp;</p>`;
 }
 
 function buildExecutiveSummaryHTML() {
@@ -1712,16 +1716,18 @@ function buildExecutiveSummaryHTML() {
       ['Depth Ratio',         `<strong>${ratio}×</strong> <span style="color:#6b7066;font-size:12px;">(opt-ins per participant)</span>`],
     ]
   );
+  html += sectionSpacer();
 
   // Engagement quality
   html += sectionHeading('Engagement Quality');
   html += summaryTable(
     ['Metric', 'Value'],
     [
-      ['Multi-Step Participants', `<strong>${multiPct}%</strong> <span style="color:#6b7066;font-size:12px;">took 2+ opt-ins</span>`],
       ['Single-Step Participants', `<strong>${onePct}%</strong> <span style="color:#6b7066;font-size:12px;">took only 1 opt-in</span>`],
+      ['Multi-Step Participants',  `<strong>${multiPct}%</strong> <span style="color:#6b7066;font-size:12px;">took 2+ opt-ins</span>`],
     ]
   );
+  html += sectionSpacer();
 
   // Traffic source mix
   if (F.hasER2) {
@@ -1738,6 +1744,7 @@ function buildExecutiveSummaryHTML() {
         `${tot>0?((count/tot)*100).toFixed(1):0}%`
       ])
     );
+    html += sectionSpacer();
   }
 
   // Source page type
@@ -1752,6 +1759,7 @@ function buildExecutiveSummaryHTML() {
         ['Page Type', 'Opt-Ins', 'Share'],
         sorted.map(([type,count]) => [type, fmt(count), `${tot>0?((count/tot)*100).toFixed(1):0}%`])
       );
+      html += sectionSpacer();
     }
   }
 
@@ -1767,6 +1775,7 @@ function buildExecutiveSummaryHTML() {
       ['Device', 'Opt-Ins', 'Share'],
       sorted.map(([type,count]) => [type, fmt(count), `${tot>0?((count/tot)*100).toFixed(1):0}%`])
     );
+    html += sectionSpacer();
   }
 
   // Depth distribution
@@ -1782,6 +1791,7 @@ function buildExecutiveSummaryHTML() {
       return [label, fmt(count), `${pct}%`];
     })
   );
+  html += sectionSpacer();
 
   // GA4 conversion rate
   if (hasAnyGA4Data()) {
@@ -1803,6 +1813,7 @@ function buildExecutiveSummaryHTML() {
         cvrRows.push(['CVR (raw)', '—', `${cvr}%`]);
         if (cvrAdj) cvrRows.push(['CVR (adjusted)', '—', `${cvrAdj}%`]);
         html += summaryTable(['Metric', 'Pageviews', 'CVR'], cvrRows);
+        html += sectionSpacer();
       }
     }
   }
