@@ -1695,16 +1695,21 @@ function buildExecutiveSummaryHTML() {
 
   // Title block
   html += `<h1 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#1a3a2a;">Opt-In Ladder Performance Summary</h1>`;
-  html += `<p style="margin:0 0 2px;font-size:13px;color:#6b7066;">Prepared by 4Site Studios &nbsp;·&nbsp; 4sitestudios.com</p>`;
   html += `<p style="margin:0 0 2px;font-size:13px;color:#6b7066;">Generated ${today}</p>`;
 
+  // Blank line before context block
+  html += sectionSpacer();
+
   // Context block — dates + drill-downs
-  html += `<div style="margin:16px 0 0;padding:12px 16px;background:#f5f0e8;border-left:3px solid #2d5a40;border-radius:2px;">`;
+  html += `<div style="margin:8px 0 0;padding:12px 16px;background:#f5f0e8;border-left:3px solid #2d5a40;border-radius:2px;">`;
   html += `<p style="margin:0 0 4px;font-size:13px;"><strong>Date Range:</strong> ${dateRangeStr} &nbsp;·&nbsp; <strong>View:</strong> ${gran}</p>`;
   if (drillDowns.length) {
     html += `<p style="margin:0;font-size:13px;"><strong>Filters:</strong> ${drillDowns.join(' &nbsp;·&nbsp; ')}</p>`;
   }
   html += `</div>`;
+
+  // Blank line before Participation
+  html += sectionSpacer();
 
   // Participation
   html += sectionHeading('Participation');
@@ -1793,33 +1798,43 @@ function buildExecutiveSummaryHTML() {
   );
   html += sectionSpacer();
 
-  // GA4 conversion rate
-  if (hasAnyGA4Data()) {
+  // Conversion Rate — always shown, per period
+  {
     const adblockOn  = document.getElementById('adblock-toggle')?.checked;
     const adblockPct = parseInt(document.getElementById('adblock-slider')?.value || AD_BLOCK_DEFAULT, 10);
-    const pd = getPeriodData();
-    const granRaw = document.getElementById('filter-granularity').value;
-    if (granRaw === 'monthly') {
-      const totalViews = pd.reduce((sum,d)=>sum+(ga4Views[d.period]||0),0);
-      if (totalViews > 0) {
-        const adjViews = adblockOn ? Math.round(totalViews*(1+adblockPct/100)) : null;
-        const cvr = ((unique/totalViews)*100).toFixed(2);
-        const cvrAdj = adjViews ? ((unique/adjViews)*100).toFixed(2) : null;
-        html += sectionHeading('Conversion Rate (vs GA4 Pageviews)');
-        const cvrRows = [
-          ['GA4 Pageviews (reported)', fmt(totalViews), '—'],
-        ];
-        if (adjViews) cvrRows.push([`Adj. Pageviews (+${adblockPct}% ad blocker correction)`, fmt(adjViews), '—']);
-        cvrRows.push(['CVR (raw)', '—', `${cvr}%`]);
-        if (cvrAdj) cvrRows.push(['CVR (adjusted)', '—', `${cvrAdj}%`]);
-        html += summaryTable(['Metric', 'Pageviews', 'CVR'], cvrRows);
-        html += sectionSpacer();
-      }
-    }
+    const pd         = getPeriodData();
+    const granRaw    = document.getElementById('filter-granularity').value;
+
+    // Determine which optional columns actually have any data
+    const hasGA4Data   = hasAnyGA4Data() && granRaw === 'monthly';
+    const hasAdj       = hasGA4Data && adblockOn;
+
+    // Build column headers — only include columns with data
+    const headers = ['Period', 'Participants', 'Total Opt-Ins'];
+    if (hasGA4Data) headers.push('GA4 Views');
+    if (hasAdj)     headers.push('Adj. Views');
+    if (hasGA4Data) headers.push('CVR (raw)');
+    if (hasAdj)     headers.push('CVR (adj.)');
+
+    const rows = pd.map(d => {
+      const raw  = hasGA4Data ? (ga4Views[d.period] ?? null) : null;
+      const adj  = (hasAdj && raw != null) ? Math.round(raw * (1 + adblockPct / 100)) : null;
+      const cvrRaw = (raw != null && raw > 0) ? ((d.participants / raw) * 100).toFixed(2) + '%' : '—';
+      const cvrAdj = (adj != null && adj > 0) ? ((d.participants / adj) * 100).toFixed(2) + '%' : '—';
+
+      const cells = [d.label, fmt(d.participants), fmt(d.optins)];
+      if (hasGA4Data) cells.push(raw != null ? fmt(raw) : '—');
+      if (hasAdj)     cells.push(adj != null ? fmt(adj) : '—');
+      if (hasGA4Data) cells.push(cvrRaw);
+      if (hasAdj)     cells.push(cvrAdj);
+      return cells;
+    });
+
+    html += sectionHeading('Performance by Period');
+    html += summaryTable(headers, rows);
+    html += sectionSpacer();
   }
 
-  // Footer
-  html += `<p style="margin:32px 0 0;font-size:12px;color:#6b7066;border-top:1px solid #c8ddd0;padding-top:12px;">Prepared by 4Site Studios &nbsp;·&nbsp; <a href="https://4sitestudios.com" style="color:#2d5a40;">4sitestudios.com</a></p>`;
   html += `</div>`;
 
   return html;
