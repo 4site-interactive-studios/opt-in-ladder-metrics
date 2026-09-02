@@ -157,6 +157,9 @@ emit('ga4-notime.csv', ga4, ['event', 'pType', 'pName', 'pId', 'label', 'optId',
   writeFileSync(join(out, 'ga4-stepdim.csv'), META.join('\n') + '\n' + toCSV(header, body));
 }
 emit('ga4-tab-parent.csv', ga4, ['year', 'monthMM', 'event', 'pType', 'pName', 'pId'], ['count']);
+// The README recipe: three tabs that fit GA4's five-row-dimension limit (views tab = ga4-views.csv)
+emit('ga4-tab-pages.csv', ga4, ['year', 'monthMM', 'event', 'pType', 'pName'], ['count']);
+emit('ga4-tab-steps.csv', ga4, ['year', 'monthMM', 'event', 'label', 'fsName'], ALL_METRICS);
 emit('ga4-tab-label.csv',  ga4, ['year', 'monthMM', 'event', 'label', 'optId'], ['count', 'stepSum', 'subSum', 'totalSum']);
 emit('ga4-tab-first.csv',  ga4, ['year', 'monthMM', 'event', 'fsName', 'fsId'], ['count']);
 emit('ga4-shard-q1.csv', ga4.filter(r => r.month <= '2025-03'), ALL_DIMS, ALL_METRICS);

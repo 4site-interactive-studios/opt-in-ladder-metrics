@@ -218,23 +218,23 @@ The GTM tag *GA4 Event - Opt-In Ladder Submit* sends these parameters with the `
 
 **2. Create the exploration.** Explore → Blank → Free form. Set the date range to match the EN export. In Tab Settings, set Rows → Show rows to the maximum.
 
-**3. Tab "Ladder Submits"**
-- Rows: `Year`, `Month`, `Event name`, `Optin Parent Page Type`, `Optin Parent Page Name`, `Optin Parent Page ID`, `Optin Label`, `Optin ID`, `Optin First Step Name`, `Optin First Step ID`
-- Values: `Event count`, `Optin Step Number`, `Optin Total Steps`, `Optin Submission Count`
-- Filter: `Event name` exactly matches `ENGRID_OPTIN_LADDER_SUBMIT`
+**3. Tabs.** A free-form table takes at most five row dimensions, so the export is split into three tabs that share `Year`, `Month`, `Event name`. The dashboard reads each breakdown from the tab that carries it and never adds tabs together.
 
-Use `Year` + `Month` rather than `Date` to keep the row count low; `Month` alone is a two-digit value the dashboard cannot date. `Date` (YYYYMMDD) works for short ranges.
+| Tab | Rows (in this order) | Values | Filters |
+|---|---|---|---|
+| Ladder Pages | `Year`, `Month`, `Event name`, `Optin Parent Page Type`, `Optin Parent Page Name` | `Event count` | `Event name` exactly matches `ENGRID_OPTIN_LADDER_SUBMIT` |
+| Ladder Steps | `Year`, `Month`, `Event name`, `Optin Label`, `Optin First Step Name` | `Event count`, `Optin Step Number`, `Optin Total Steps`, `Optin Submission Count` | `Event name` exactly matches `ENGRID_OPTIN_LADDER_SUBMIT` |
+| Ladder Views | `Year`, `Month`, `Event name` | `Event count` | `Event name` exactly matches `page_view` **and** `Page path and screen class` contains `/page/<ladder page ID>/data/1` **and** `Page location` does not contain `engrid_optin_ladder_followup` |
 
-**4. Tab "Ladder Views"** (the conversion-rate denominator)
-- Rows: `Year`, `Month`, `Event name`
-- Values: `Event count`
-- Filters: `Event name` exactly matches `page_view` **and** `Page path and screen class` contains `/page/<ladder page ID>/data/1` **and** `Page location` does not contain `engrid_optin_ladder_followup`
+Set Show rows to 500 and Nested rows to No on every tab. Keep `Event name` even on filtered tabs: it is how the dashboard tells submits from views. Use `Year` + `Month` rather than `Date` to keep row counts low; `Month` alone is a two-digit value the dashboard cannot date. Do not move dimensions into Columns: a pivoted table exports in a shape the importer does not read.
 
-This counts first-step ladder impressions only, which is stricter than counting every load of the ladder page, so it will not match historical hand-entered figures exactly. Drop the followup exclusion if you want every ladder page load instead. The ladder page ID is the numeric ID in the `OptInLadder.iframeUrl` option of the client's ENgrid theme (NWF: 88894).
+Optional fourth tab when labels or page names get renamed over time: `Year`, `Month`, `Event name`, `Optin ID`, `Optin First Step ID` (or `Optin Parent Page ID`). The dashboard shows names when present and falls back to IDs.
 
-**5. If the submits tab hits the row limit or shows `(other)` rows**, either shorten the date range and export several shards (same columns; the dashboard concatenates them), or split the tab into per-breakdown tabs (parent pages / labels / first step, each with `Year`, `Month`, `Event name`, `Event count`); the dashboard treats those as alternative views and never double counts.
+**4. About the views tab.** It counts first-step ladder impressions only, which is stricter than counting every ladder page load, so it will not match historical hand-entered figures exactly. Drop the `Page location` filter if you want every ladder page load instead. The ladder page ID is the numeric ID in the `OptInLadder.iframeUrl` option of the client's ENgrid theme (NWF: 88894).
 
-**6. Export.** On each tab: Export (top right) → Download CSV (TSV also works). Drop all files together with the EN CSV, or add them later via *Add GA4 Export*. Check the import report in the GA4 Data panel: every column should show a mapping, the month range should match the EN export, and there should be no warnings.
+**5. If a tab hits the 500-row limit or shows `(other)` rows**, shorten the date range and export several shards with identical columns; the dashboard concatenates them and flags overlapping months. The Ladder Pages tab is the one that grows with the number of parent pages.
+
+**6. Export.** On each tab: Export (top right) → Download CSV (TSV also works); each tab downloads separately and takes the tab name as its filename. Drop all files together with the EN CSV, or add them later via *Add GA4 Export*. Check the import report in the GA4 Data panel: every column should show a mapping, the month range should match the EN export, and there should be no warnings.
 
 **Caveats:** GA4 only sees traffic that loads GTM and consents to analytics, which is exactly what the Coverage figure measures. Google Signals thresholding can hide low-count rows in explorations. Adding `opt_in_step` as an event-scoped custom dimension would enable a per-step funnel, but this dashboard reads step data as sum metrics only.
 

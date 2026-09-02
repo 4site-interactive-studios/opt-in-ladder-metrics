@@ -229,6 +229,18 @@ console.log('\n4. Alternative-view tabs and date shards');
   await page.close();
 }
 
+{
+  const { page, errors } = await newPage();
+  await loadEN(page, ['ga4-tab-pages.csv', 'ga4-tab-steps.csv', 'ga4-views.csv']);
+  await page.waitForFunction(() => ga4Tables.length === 3);
+  const f = await flags(page);
+  check('README recipe (pages + steps + views tabs): all flags', f.hasGA4Parent && f.hasGA4Label && f.hasGA4FirstStep && f.hasGA4StepMetric && f.hasGA4Views && f.hasGA4Time, JSON.stringify(f));
+  check('recipe: coverage + every card populated', (await kpi(page, 'GA4 Coverage')).value === expected.coverageAll && (await page.$$('#hbar-ga4-parent .hbar-item')).length === 3 && (await page.$$('#hbar-ga4-label .hbar-item')).length === 4 && (await page.$$('#hbar-ga4-first-step .hbar-item')).length === 1 && (await page.$$('#ga4-step-stats .ga4-stat-pill')).length === 3);
+  check('recipe: views auto-filled + CVR columns', (await headers(page)).includes('CVR (raw)') && (await page.$$('.ga4-month-field.auto')).length === 6);
+  check('no page errors', errors.length === 0, errors.join(' | '));
+  await page.close();
+}
+
 console.log('\n5. Upload-screen staging, bad file, dashboard drop');
 {
   const { page, errors } = await newPage();
