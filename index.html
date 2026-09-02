@@ -327,6 +327,48 @@ body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(
 .views-cell { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--mid); }
 th.ga4-col { color: var(--bark) !important; }
 
+/* ── GA4 import / sections ── */
+.ga4-drop {
+  border: 1.5px dashed rgba(0,0,0,0.18); border-radius: 6px; padding: 14px 16px;
+  background: white; cursor: pointer; text-align: center; transition: all 0.2s; margin-bottom: 12px;
+}
+.ga4-drop:hover, .ga4-drop.drag-over { border-color: var(--amber); background: #fffbea; }
+.ga4-drop-label { font-size: 13px; color: var(--ink); }
+.ga4-drop-label strong { color: var(--bark); font-weight: 500; }
+.ga4-drop-hint { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); letter-spacing: 0.05em; margin-top: 4px; }
+.ga4-import-report { font-size: 12px; color: var(--ink); line-height: 1.5; margin-bottom: 14px; }
+.ga4-import-report:empty { display: none; }
+.ga4-report-table { background: white; border: 1px solid rgba(0,0,0,0.08); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+.ga4-report-file { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.ga4-file-chip { display: inline-flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 11px; background: var(--paper); border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; padding: 3px 8px; }
+.ga4-file-chip .ga4-remove { background: none; border: none; color: var(--mid); cursor: pointer; font-size: 12px; padding: 0 2px; line-height: 1; }
+.ga4-file-chip .ga4-remove:hover { color: #9b1c1c; }
+.ga4-col-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; }
+.ga4-col-chip { font-family: 'DM Mono', monospace; font-size: 10px; padding: 2px 7px; border-radius: 3px; background: var(--mist); color: var(--forest); }
+.ga4-col-chip.unmapped { background: #fdf3d0; color: var(--bark); }
+.ga4-col-chip.ignored  { background: rgba(0,0,0,0.05); color: var(--mid); }
+.ga4-report-line { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); margin: 2px 0; }
+.ga4-report-warn { font-size: 12px; color: #9b1c1c; background: #fde8e8; border-radius: 4px; padding: 5px 10px; margin: 6px 0; }
+.ga4-block { margin-bottom: 20px; animation: fadeUp 0.5s ease both; }
+.ga4-block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.ga4-block-title { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 300; color: var(--forest); display: flex; align-items: center; gap: 10px; }
+.ga4-scope-badge { display: inline-block; font-family: 'DM Mono', monospace; font-size: 10px; background: var(--mist); color: var(--forest); padding: 2px 7px; border-radius: 3px; letter-spacing: 0.04em; vertical-align: middle; }
+.ga4-scope-badge.whole { background: var(--cream); color: var(--bark); }
+.ga4-scope-badge:empty { display: none; }
+.ga4-filter-note { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); background: var(--cream); border: 1px solid rgba(0,0,0,0.08); border-radius: 4px; padding: 6px 10px; margin-bottom: 14px; }
+.ga4-filter-note.active { border-left: 3px solid var(--amber); color: var(--ink); }
+.hbar-list.wide .hbar-label { min-width: 200px; max-width: 45%; }
+.ga4-stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.ga4-stat-pill { flex: 1; min-width: 140px; background: var(--paper); border: 1px solid rgba(0,0,0,0.08); border-radius: 6px; padding: 12px 14px; }
+.ga4-stat-value { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 700; color: var(--forest); line-height: 1; }
+.ga4-stat-label { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--mid); margin-top: 6px; }
+.ga4-mode-radios { display: none; gap: 10px; align-items: center; font-size: 12px; color: var(--ink); }
+.ga4-mode-radios.visible { display: flex; }
+.ga4-mode-radios label { display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
+.ga4-mode-radios input { accent-color: var(--sage); margin: 0; }
+.ga4-month-field.auto::placeholder { color: var(--bark); opacity: 0.85; }
+.ga4-auto-note { font-size: 11px; color: var(--bark); margin: -8px 0 12px; }
+
 /* ── Cache restore banner ── */
 .cache-banner {
   display: flex; align-items: flex-start; gap: 14px;
@@ -380,10 +422,10 @@ th.ga4-col { color: var(--bark) !important; }
     <p class="upload-sub">Upload your Engaging Networks export of the Opt-in Ladder Transactions to visualize participation, opt-in depth, and conversion trends.</p>
     <div class="drop-zone" id="drop-zone">
       <span class="drop-icon">🌿</span>
-      <p class="drop-label"><strong>Drop your CSV here</strong> or click to browse</p>
-      <p class="drop-hint">Engaging Networks Transaction export · any client</p>
+      <p class="drop-label"><strong>Drop your EN CSV here</strong> or click to browse<br><span style="font-size:13px;color:var(--fern)">Add your GA4 Exploration export too (optional, CSV or TSV)</span></p>
+      <p class="drop-hint">Engaging Networks Transaction export · optional GA4 export · any client</p>
     </div>
-    <input type="file" id="file-input" accept=".csv">
+    <input type="file" id="file-input" accept=".csv,.tsv,.txt" multiple>
     <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     <div class="parse-status" id="parse-status"></div>
   </div>
@@ -395,6 +437,10 @@ th.ga4-col { color: var(--bark) !important; }
     <div class="top-bar-title"><span class="logo">4Site's Opt-In <span>Ladder</span> · Analytics Visualizer</span></div>
     <div class="top-bar-meta" id="top-bar-meta"></div>
     <div class="top-bar-actions">
+      <button class="btn-export" id="btn-ga4-import" onclick="document.getElementById('ga4-file-input').click()" title="Import a GA4 Exploration export (CSV or TSV) to unlock the GA4 sections">
+        <span class="btn-icon">📈</span> Add GA4 Export
+      </button>
+      <input type="file" id="ga4-file-input" accept=".csv,.tsv,.txt" multiple style="display:none">
       <button class="btn-export" id="btn-copy-summary" onclick="copyExecutiveSummary()" title="Copy executive summary to clipboard">
         <span class="btn-icon">📋</span> Copy Summary
       </button>
@@ -469,12 +515,27 @@ const AD_BLOCK_DEFAULT = 25;       // % undercount default for US nonprofit audi
 const CACHE_KEY = 'optin_ladder_cache';
 let currentFingerprint = null;     // set after file parsed; used for save/restore matching
 
+// GA4 Exploration export state (optional second data source)
+let   ga4Tables       = [];        // GA4Table[] — one per distinct column signature (same columns = date shards, concatenated)
+let   ga4Meta         = null;      // import report data built by recomputeGA4State()
+const ga4AutoViews    = {};        // 'YYYY-MM' → page_view count from imports; manual ga4Views overrides per month
+let   pendingGA4Files = [];        // GA4 files dropped on the upload screen before the EN file was parsed
+let   ga4AutoCorrection = false;   // true once measured ad-blocker correction was switched on for this session
+
 const F = {
   hasPG:          false,
   hasER2:         false,
   hasTidyContact: false,
   hasCampaignID:  false,
   hasCD32:        false,   // Campaign Data 32 — device/browser string
+  // GA4 Exploration export (set by recomputeGA4State)
+  hasGA4Events:     false, // ≥1 ENGRID_OPTIN_LADDER_SUBMIT row → GA4 block, coverage KPI
+  hasGA4Time:       false, // totals table carries a month key → Period filter + per-period coverage columns
+  hasGA4Views:      false, // page_view rows with a month → ga4AutoViews filled (auto CVR denominators)
+  hasGA4Parent:     false, // Optin Parent Page Name/ID/Type present
+  hasGA4Label:      false, // Optin Label/ID present
+  hasGA4FirstStep:  false, // Optin First Step Name/ID present
+  hasGA4StepMetric: false, // Optin Step Number / Total Steps / Submission Count sums present
 };
 
 // ════════════════════════════════════════════════
@@ -581,9 +642,40 @@ dropZone.addEventListener('dragover', e  => { e.preventDefault(); dropZone.class
 dropZone.addEventListener('dragleave',()  => dropZone.classList.remove('drag-over'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('drag-over');
-  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+  handleDroppedFiles(e.dataTransfer.files);
 });
-fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+fileInput.addEventListener('change', e => { handleDroppedFiles(e.target.files); e.target.value = ''; });
+document.getElementById('ga4-file-input').addEventListener('change', e => {
+  if (e.target.files.length) importGA4Files(Array.from(e.target.files));
+  e.target.value = '';
+});
+
+// Routes any mix of dropped files: the EN transaction CSV starts the dashboard,
+// GA4 exports are imported (or staged until the EN file arrives), anything else is reported.
+async function handleDroppedFiles(fileList, { onDashboard = false } = {}) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  const kinds    = await Promise.all(files.map(sniffFileKind));
+  const enFiles  = files.filter((_, i) => kinds[i] === 'en');
+  const ga4Files = files.filter((_, i) => kinds[i] === 'ga4');
+  const unknown  = files.filter((_, i) => kinds[i] === 'unknown');
+
+  if (onDashboard) {
+    if (ga4Files.length) importGA4Files(ga4Files);
+    if (enFiles.length)  showToast('↩ Use "New File" to load a different Engaging Networks export');
+    if (unknown.length)  showToast(`⚠ Unrecognized file: ${unknown[0].name}`);
+    return;
+  }
+
+  if (ga4Files.length) pendingGA4Files.push(...ga4Files);
+  // An unrecognized file with no better candidate is treated as the EN export (legacy behaviour)
+  const enCandidate = enFiles[0] || (ga4Files.length === files.length ? null : unknown[0]);
+  if (enCandidate) {
+    processFile(enCandidate);
+  } else if (ga4Files.length) {
+    setStatus(`GA4 export staged (${ga4Files.map(f => f.name).join(', ')}) — now drop the Engaging Networks CSV`);
+  }
+}
 
 function setStatus(msg) { document.getElementById('parse-status').textContent = msg; }
 
@@ -690,6 +782,9 @@ function processData(data, fileName) {
   // ── Check cache ──
   checkAndRestoreCache(currentFingerprint);
 
+  // ── GA4 exports dropped together with the EN file ──
+  if (pendingGA4Files.length) importGA4Files(pendingGA4Files.splice(0));
+
   document.getElementById('top-bar-meta').textContent =
     `${allRows.length.toLocaleString()} submissions · ${[...new Set(allRows.map(r=>r.supporterID))].length.toLocaleString()} supporters`;
 }
@@ -768,6 +863,7 @@ function applyFilters() {
   if (F.hasPG)         renderPGGrid();
   if (F.hasCampaignID) renderCampaignTable();
   if (F.hasCD32)       renderDeviceBrowserSection();
+  if (F.hasGA4Events)  renderGA4Sections();
 }
 
 // ════════════════════════════════════════════════
@@ -778,49 +874,672 @@ function toggleGA4Panel() {
 }
 
 function buildGA4Inputs() {
-  // Collect all unique months from allRows
+  // One input per month in the EN export. Imported page_view counts show as placeholders; a typed value overrides.
   const months = [...new Set(allRows.map(r => r.month).filter(m => m !== 'Unknown'))].sort();
   const container = document.getElementById('ga4-inputs');
-  container.innerHTML = months.map(m => `
+  if (!container) return;
+  container.innerHTML = months.map(m => {
+    const manual = ga4Views[m] != null;
+    const auto   = ga4AutoViews[m];
+    return `
     <div class="ga4-month-input">
       <label class="ga4-month-label" for="ga4-${m}">${formatMonth(m)}</label>
-      <input class="ga4-month-field" id="ga4-${m}" type="text" inputmode="numeric"
-             placeholder="e.g. 12,400" value="${ga4Views[m] != null ? ga4Views[m].toLocaleString() : ''}"
+      <input class="ga4-month-field ${(!manual && auto != null) ? 'auto' : ''}" id="ga4-${m}" type="text" inputmode="numeric"
+             placeholder="${auto != null ? `auto: ${auto.toLocaleString()}` : 'e.g. 12,400'}" value="${manual ? ga4Views[m].toLocaleString() : ''}"
+             title="${auto != null ? 'Imported from GA4 page_view rows — type a value to override' : 'Monthly GA4 pageviews of the ladder page'}"
              onchange="onGA4Input('${m}', this.value)" onblur="onGA4Input('${m}', this.value)">
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
+  const note = document.getElementById('ga4-auto-note');
+  if (note) note.textContent = F.hasGA4Views
+    ? 'Views auto-filled from the GA4 export (page_view rows). Type a value to override a month; clear it to return to the imported figure.'
+    : '';
 }
 
 function onGA4Input(month, raw) {
-  const n = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+  const n  = parseInt(String(raw).replace(/[^0-9]/g, ''), 10);
+  const el = document.getElementById(`ga4-${month}`);
   if (!isNaN(n) && n > 0) {
     ga4Views[month] = n;
-    const el = document.getElementById(`ga4-${month}`);
     if (el) el.value = n.toLocaleString();
   } else {
     delete ga4Views[month];
+    if (el) el.value = '';
   }
+  if (el) el.classList.toggle('auto', ga4Views[month] == null && ga4AutoViews[month] != null);
   renderTable();
   saveCache();
 }
 
-function onAdblockToggle() {
-  const on = document.getElementById('adblock-toggle').checked;
-  document.getElementById('adblock-slider').disabled = !on;
-  document.getElementById('adblock-pct-badge').classList.toggle('active', on);
-  renderTable();
-  saveCache();
-}
-
-function onAdblockSlider() {
-  const pct = document.getElementById('adblock-slider').value;
-  document.getElementById('adblock-pct-badge').textContent = `+${pct}%`;
-  renderTable();
-  saveCache();
-}
+function onAdblockToggle() { updateAdblockModeUI(); renderTable(); saveCache(); }
+function onAdblockSlider() { updateAdblockModeUI(); renderTable(); saveCache(); }
 
 function hasAnyGA4Data() {
-  return Object.keys(ga4Views).length > 0;
+  return Object.keys(ga4Views).length > 0 || F.hasGA4Views;
+}
+
+// ════════════════════════════════════════════════
+//  GA4 Import — Exploration export (CSV/TSV) as an optional second data source
+//  One GA4Table per distinct column signature. Files with the same columns are
+//  date shards and are concatenated; files with different columns are alternative
+//  views of the same events and are never summed together. Coverage and views
+//  come from one table each; every breakdown reads the table carrying its dimension.
+// ════════════════════════════════════════════════
+const GA4_COLUMNS = [
+  { key:'event',         aliases:['event name','event'],                                          re:/^event.*name/ },
+  { key:'count',         aliases:['event count','events','event count total'],                    re:/^event.*count/ },
+  { key:'views',         aliases:['views','screen page views','pageviews','page views','views total'], re:/^(screen )?page ?views$/ },
+  { key:'parentType',    aliases:['optin parent page type','parent page type'],                   re:/parent.*type/ },
+  { key:'parentName',    aliases:['optin parent page name','parent page name'],                   re:/parent.*name/ },
+  { key:'parentId',      aliases:['optin parent page id','parent page id'],                       re:/parent.*id/ },
+  { key:'firstStepName', aliases:['optin first step name','first step name'],                     re:/first.*step.*name/ },
+  { key:'firstStepId',   aliases:['optin first step id','first step id'],                         re:/first.*step.*id/ },
+  { key:'optinLabel',    aliases:['optin label','opt in label'],                                  re:/opt.?in.*label/ },
+  { key:'optinId',       aliases:['optin id','opt in id'],                                        re:/^opt.?in id$/ },
+  { key:'step',          aliases:['optin step number','optin step','opt in step','opt in step number','step number'], re:/step.*number/ },
+  { key:'totalSteps',    aliases:['optin total steps','opt in total steps','total steps'],        re:/total.*steps/ },
+  { key:'submission',    aliases:['optin submission count','opt in submission count','submission count'], re:/submission.*count/ },
+  { key:'date',          aliases:['date'] },
+  { key:'dateHour',      aliases:['date hour'] },
+  { key:'yearMonth',     aliases:['year month'] },
+  { key:'month',         aliases:['month'] },
+  { key:'year',          aliases:['year'] },
+  { key:'ignored',       aliases:['page path','page path and screen class','page location','page path query string','page path plus query string','page title','hostname','segment','week','day','day of week','hour','nth day','nth week','nth month','nth year'], re:/^(page |nth |segment)/ },
+];
+const GA4_DIM_KEYS  = ['event','parentType','parentName','parentId','optinLabel','optinId','firstStepName','firstStepId'];
+const GA4_SUM_KEYS  = ['step','totalSteps','submission'];
+const GA4_KEY_LABEL = {
+  event:'event name', count:'event count', views:'views',
+  parentType:'parent page type', parentName:'parent page name', parentId:'parent page ID',
+  optinLabel:'opt-in label', optinId:'opt-in ID', firstStepName:'first step name', firstStepId:'first step ID',
+  step:'step number (sum)', totalSteps:'total steps (sum)', submission:'submission count (sum)',
+  date:'date', dateHour:'date + hour', yearMonth:'year month', month:'month', year:'year',
+};
+const MONTH_ABBR = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function normHeader(h) { return String(h ?? '').replace(/^\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+function parseGA4Number(v) {
+  if (v == null) return NaN;
+  const s = String(v).replace(/[^0-9.\-]/g, '');
+  if (!s) return NaN;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+function quarterOf(month) { const [y, m] = month.split('-'); return `${y}-Q${Math.ceil(parseInt(m, 10) / 3)}`; }
+
+function ga4PageTypeLabel(t) {
+  const map = { DONATION:'Donation', ADVOCACY:'Advocacy', SURVEY:'Survey', EMAILTOTARGET:'Email to Target', ECARD:'eCard',
+                SUBSCRIBEFORM:'Subscribe Form', EVENT:'Event', SUPPORTERHUB:'Supporter Hub', UNSUBSCRIBE:'Unsubscribe',
+                TWEETPAGE:'Tweet Page', UNKNOWN:'Unknown' };
+  if (!t) return 'Unknown';
+  return map[String(t).toUpperCase()] || capitalize(String(t).toLowerCase());
+}
+
+// Decode a File to text, honouring UTF-8/UTF-16 BOMs (GA4 TSV downloads can be UTF-16)
+async function readFileText(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let enc = 'utf-8';
+  if (buf[0] === 0xFF && buf[1] === 0xFE) enc = 'utf-16le';
+  else if (buf[0] === 0xFE && buf[1] === 0xFF) enc = 'utf-16be';
+  else if (!(buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF)) {
+    const sample = buf.subarray(0, Math.min(512, buf.length));
+    let zeros = 0; sample.forEach(b => { if (b === 0) zeros++; });
+    if (sample.length && zeros / sample.length > 0.2) enc = 'utf-16le';
+  }
+  const text = new TextDecoder(enc).decode(buf).replace(/^\uFEFF/, '');
+  return { text, encoding: enc.toUpperCase() };
+}
+
+// 'en' | 'ga4' | 'unknown' from the first few KB of a file
+async function sniffFileKind(file) {
+  try {
+    const { text } = await readFileText(file.slice(0, 16384));
+    const lines = text.split(/\r?\n/);
+    let i = 0, hadMeta = false;
+    while (i < lines.length && (lines[i].trim() === '' || lines[i].trimStart().startsWith('#'))) { if (lines[i].trim()) hadMeta = true; i++; }
+    const header = lines[i] || '';
+    if (/supporter id/i.test(header)) return 'en';
+    if (hadMeta || /event name|event count|\boptin\b|\bviews\b/i.test(header)) return 'ga4';
+    if (/ga4|analytics|exploration/i.test(file.name)) return 'ga4';
+    return 'unknown';
+  } catch (e) { return 'unknown'; }
+}
+
+function mapGA4Header(cells) {
+  const cols = {}, unmapped = [], ignored = [];
+  cells.forEach((raw, i) => {
+    const n = normHeader(raw);
+    if (!n) return;
+    let def = GA4_COLUMNS.find(d => d.aliases.includes(n));
+    if (!def) def = GA4_COLUMNS.find(d => d.re && d.re.test(n));
+    if (!def) { unmapped.push(String(raw).trim()); return; }
+    if (def.key === 'ignored') { ignored.push(String(raw).trim()); return; }
+    if (cols[def.key] == null) cols[def.key] = i; else unmapped.push(String(raw).trim() + ' (duplicate)');
+  });
+  return { cols, unmapped, ignored };
+}
+
+// Resolve a row's month from whichever time columns the export carries
+function ga4TimeFromRow(cells, cols) {
+  const get = k => cols[k] != null ? String(cells[cols[k]] ?? '').trim() : '';
+  let y = null, m = null, source = null, mm;
+  const d = get('date') || get('dateHour');
+  if (d && (mm = d.match(/^(\d{4})(\d{2})(\d{2})/))) { y = mm[1]; m = mm[2]; source = 'Date'; }
+  if (!y && (mm = get('yearMonth').match(/^(\d{4})(\d{2})$/))) { y = mm[1]; m = mm[2]; source = 'Year month'; }
+  if (!y) {
+    const mo = get('month'), yr = get('year');
+    if ((mm = mo.match(/^(\d{4})(\d{2})$/)))          { y = mm[1]; m = mm[2]; source = 'Month (YYYYMM)'; }
+    else if ((mm = mo.match(/^(\d{4})-(\d{1,2})$/)))  { y = mm[1]; m = mm[2]; source = 'Month (YYYY-MM)'; }
+    else if ((mm = mo.match(/^([A-Za-z]{3,9})\.?,?\s+(\d{4})$/)) && MONTH_ABBR[mm[1].slice(0, 3).toLowerCase()]) {
+      y = mm[2]; m = String(MONTH_ABBR[mm[1].slice(0, 3).toLowerCase()]); source = 'Month (text)';
+    }
+    else if ((mm = mo.match(/^(\d{1,2})$/))) {
+      if (/^\d{4}$/.test(yr)) { y = yr; m = mm[1]; source = 'Year + Month'; } else source = 'monthOnly';
+    }
+  }
+  if (!y || !m) return { month: null, quarter: null, source };
+  const mi = parseInt(m, 10);
+  if (mi < 1 || mi > 12) return { month: null, quarter: null, source };
+  const month = `${y}-${String(mi).padStart(2, '0')}`;
+  return { month, quarter: quarterOf(month), source };
+}
+
+// Parse one GA4 export (decoded text) into a GA4Table, or {error}
+function parseGA4Text(text, fileName, encoding) {
+  const lines = text.split(/\r?\n/);
+  const metaLines = [];
+  let i = 0;
+  while (i < lines.length && (lines[i].trim() === '' || lines[i].trimStart().startsWith('#'))) {
+    const t = lines[i].trim().replace(/^#\s*/, '').replace(/^-{3,}$/, '').trim();
+    if (t) metaLines.push(t);
+    i++;
+  }
+  const rest = lines.slice(i).join('\n');
+  if (!rest.trim()) return { error: `${fileName}: no data rows found` };
+  const first = lines[i];
+  const delimiter = first.includes('\t') ? '\t' : (first.split(';').length > first.split(',').length ? ';' : ',');
+  const data = Papa.parse(rest, { delimiter, header: false, skipEmptyLines: 'greedy' }).data;
+
+  let headerIdx = -1, map = null;
+  for (let r = 0; r < Math.min(20, data.length); r++) {
+    const m = mapGA4Header(data[r]);
+    if ((m.cols.count != null || m.cols.views != null) && Object.keys(m.cols).length >= 2) { headerIdx = r; map = m; break; }
+  }
+  if (headerIdx < 0) return { error: `${fileName}: no header row with "Event count" or "Views" found — is this a GA4 export?` };
+
+  const header = data[headerIdx].map(h => String(h).trim());
+  const cols   = map.cols;
+  const metricStart = Math.min(...['count', 'views'].filter(k => cols[k] != null).map(k => cols[k]));
+  // Step/total/submission columns left of the metrics are dimensions — not supported (metrics only)
+  const stepAsDim = GA4_SUM_KEYS.filter(k => cols[k] != null && cols[k] < metricStart).map(k => header[cols[k]]);
+  GA4_SUM_KEYS.forEach(k => { if (cols[k] != null && cols[k] < metricStart) delete cols[k]; });
+  const hasEventCol = cols.event != null;
+  const viewsOnly   = !hasEventCol && cols.views != null && cols.count == null;
+  const dimIdx = header.map((_, idx) => idx).filter(idx => idx < metricStart);
+
+  const stats = { skipped: { totals: 0, nonNumeric: 0, shortRow: 0, noTime: 0 }, notSet: {}, ignoredEvents: {} };
+  const rows = [];
+  let timeSource = null, monthOnly = false;
+
+  for (let r = headerIdx + 1; r < data.length; r++) {
+    const c = data[r];
+    if (c.length !== header.length) { stats.skipped.shortRow++; continue; }
+    const firstCell = String(c[0] ?? '').trim();
+    const allDimsBlank = dimIdx.length > 0 && dimIdx.every(idx => String(c[idx] ?? '').trim() === '');
+    if (/^(totals?|grand total)$/i.test(firstCell) || allDimsBlank) { stats.skipped.totals++; continue; }
+
+    const count = cols.count != null ? parseGA4Number(c[cols.count]) : NaN;
+    const views = cols.views != null ? parseGA4Number(c[cols.views]) : NaN;
+    if (Number.isNaN(count) && Number.isNaN(views)) { stats.skipped.nonNumeric++; continue; }
+
+    const dim = k => {
+      if (cols[k] == null) return null;
+      const v = String(c[cols[k]] ?? '').trim();
+      return (!v || /^\(not set\)$/i.test(v)) ? null : v;
+    };
+    const event = dim('event');
+    let kind;
+    if (hasEventCol) {
+      if (event && /OPTIN_LADDER_SUBMIT/i.test(event)) kind = 'submit';
+      else if (event && /^page_view$/i.test(event))     kind = 'view';
+      else { const k = event || '(not set)'; stats.ignoredEvents[k] = (stats.ignoredEvents[k] || 0) + 1; continue; }
+    } else kind = viewsOnly ? 'view' : 'submit';
+
+    const t = ga4TimeFromRow(c, cols);
+    if (t.source === 'monthOnly') monthOnly = true;
+    if (t.month && !timeSource) timeSource = t.source;
+    const sum = k => { if (cols[k] == null) return null; const n = parseGA4Number(c[cols[k]]); return Number.isNaN(n) ? null : n; };
+    const n = kind === 'view' ? (Number.isNaN(views) ? count : views) : (Number.isNaN(count) ? views : count);
+
+    const row = {
+      kind, event, month: t.month, quarter: t.quarter, _file: fileName,
+      parentType: dim('parentType'), parentName: dim('parentName'), parentId: dim('parentId'),
+      optinLabel: dim('optinLabel'), optinId: dim('optinId'),
+      firstStepName: dim('firstStepName'), firstStepId: dim('firstStepId'),
+      count: Math.round(n),
+      stepSum: sum('step'), totalStepsSum: sum('totalSteps'), submissionSum: sum('submission'),
+    };
+    if (kind === 'submit') GA4_DIM_KEYS.forEach(k => { if (k !== 'event' && cols[k] != null && row[k] == null) stats.notSet[k] = (stats.notSet[k] || 0) + row.count; });
+    rows.push(row);
+  }
+
+  const withMonth = rows.filter(r => r.month).length;
+  const hasTime = rows.length > 0 && withMonth / rows.length >= 0.9;
+  let kept = rows;
+  if (hasTime) { kept = rows.filter(r => r.month); stats.skipped.noTime = rows.length - kept.length; }
+  else kept.forEach(r => { r.month = null; r.quarter = null; });
+
+  const file = { name: fileName, rows: kept.length, delimiter: delimiter === '\t' ? 'TSV' : 'CSV', encoding, metaLines, header,
+                 unmapped: map.unmapped, ignoredCols: map.ignored, stepAsDim, monthOnly,
+                 assumedSubmits: !hasEventCol && !viewsOnly, ...stats };
+  const table = { signature: Object.keys(cols).sort().join('|'), cols, hasTime, timeSource: hasTime ? timeSource : null, hasEventCol,
+                  files: [file], rows: kept, months: new Set(), submitTotal: 0, viewTotal: 0 };
+  refreshGA4Table(table);
+  return table;
+}
+
+function refreshGA4Table(t) {
+  t.months      = new Set(t.rows.map(r => r.month).filter(Boolean));
+  t.submitTotal = t.rows.reduce((a, r) => a + (r.kind === 'submit' ? r.count : 0), 0);
+  t.viewTotal   = t.rows.reduce((a, r) => a + (r.kind === 'view'   ? r.count : 0), 0);
+}
+
+async function importGA4Files(files) {
+  const tables = [], errors = [];
+  for (const f of Array.from(files)) {
+    try {
+      const { text, encoding } = await readFileText(f);
+      const t = parseGA4Text(text, f.name, encoding);
+      if (t.error) errors.push(t.error); else tables.push(t);
+    } catch (e) { errors.push(`${f.name}: ${e.message}`); }
+  }
+  const warnings = [];
+  tables.forEach(t => {
+    const existing = ga4Tables.find(x => x.signature === t.signature);
+    if (!existing) { ga4Tables.push(t); return; }
+    if (existing.files.some(f => f.name === t.files[0].name)) { warnings.push(`${t.files[0].name} was already imported — the second copy was skipped`); return; }
+    const overlap = [...t.months].filter(m => existing.months.has(m)).sort();
+    if (overlap.length) warnings.push(`${t.files[0].name} overlaps ${existing.files.map(f => f.name).join(', ')} in ${overlap.length} month${overlap.length > 1 ? 's' : ''} (from ${formatMonth(overlap[0])}) — totals may double count`);
+    existing.files.push(...t.files);
+    existing.rows.push(...t.rows);
+    existing.hasTime = existing.hasTime && t.hasTime;
+    refreshGA4Table(existing);
+  });
+  finishGA4Ingest(warnings);
+  errors.forEach(e => showToast('⚠ ' + e));
+  if (tables.length) {
+    const s = tables.reduce((a, t) => a + t.submitTotal, 0), v = tables.reduce((a, t) => a + t.viewTotal, 0);
+    const parts = [];
+    if (s) parts.push(`${fmt(s)} tracked submits`);
+    if (v) parts.push(`${fmt(v)} ladder page views`);
+    const T = ga4TotalsTable() || ga4ViewsTable();
+    if (T && T.hasTime) parts.push(ga4RangeLabel(T));
+    showToast(parts.length ? `✓ GA4 import: ${parts.join(' · ')}` : '⚠ GA4 import: no ladder submit or page_view rows found');
+  }
+}
+
+function removeGA4File(name) {
+  ga4Tables.forEach(t => {
+    t.files = t.files.filter(f => f.name !== name);
+    t.rows  = t.rows.filter(r => r._file !== name);
+    refreshGA4Table(t);
+  });
+  ga4Tables = ga4Tables.filter(t => t.files.length && t.rows.length);
+  finishGA4Ingest([]);
+  showToast(`Removed ${name}`);
+}
+
+// Recompute flags/meta, rebuild the GA4 UI, re-render everything, persist settings
+function finishGA4Ingest(warnings) {
+  recomputeGA4State(warnings);
+  buildGA4SectionsShell();
+  buildGA4Inputs();
+  if (F.hasGA4Events && !ga4AutoCorrection) {
+    ga4AutoCorrection = true;
+    const tog = document.getElementById('adblock-toggle');
+    const measured = document.querySelector('input[name="adblock-mode"][value="measured"]');
+    if (tog && measured) { tog.checked = true; measured.checked = true; showToast('Ad blocker correction now uses measured GA4 coverage'); }
+  }
+  if (ga4Tables.length) document.getElementById('ga4-panel')?.classList.add('open');
+  renderGA4ImportReport();
+  applyFilters();
+  saveCache();
+}
+
+function recomputeGA4State(warnings = []) {
+  F.hasGA4Events = ga4Tables.some(t => t.submitTotal > 0);
+  const T = ga4TotalsTable();
+  F.hasGA4Time = !!T && T.hasTime;
+  Object.keys(ga4AutoViews).forEach(k => delete ga4AutoViews[k]);
+  const V = ga4ViewsTable();
+  if (V && V.hasTime) V.rows.forEach(r => { if (r.kind === 'view' && r.month) ga4AutoViews[r.month] = (ga4AutoViews[r.month] || 0) + r.count; });
+  F.hasGA4Views      = Object.keys(ga4AutoViews).length > 0;
+  F.hasGA4Parent     = !!ga4TableFor(['parentName', 'parentId', 'parentType']);
+  F.hasGA4Label      = !!ga4TableFor(['optinLabel', 'optinId']);
+  F.hasGA4FirstStep  = !!ga4TableFor(['firstStepName', 'firstStepId']);
+  F.hasGA4StepMetric = !!ga4StepTable();
+  ga4Meta = buildGA4Meta(warnings);
+}
+
+// ── Table selection ──
+const ga4Prefer = (a, b) => (b.hasTime - a.hasTime) || (b.submitTotal - a.submitTotal);
+function ga4TotalsTable() { return ga4Tables.filter(t => t.submitTotal > 0).sort(ga4Prefer)[0] || null; }
+function ga4ViewsTable()  { return ga4Tables.filter(t => t.viewTotal > 0).sort((a, b) => (b.hasTime - a.hasTime) || (b.viewTotal - a.viewTotal))[0] || null; }
+function ga4TableFor(keys) {
+  return ga4Tables.filter(t => t.rows.some(r => r.kind === 'submit' && keys.some(k => r[k] != null))).sort(ga4Prefer)[0] || null;
+}
+function ga4StepTable() {
+  return ga4Tables.filter(t => t.rows.some(r => r.kind === 'submit' && (r.stepSum != null || r.totalStepsSum != null || r.submissionSum != null))).sort(ga4Prefer)[0] || null;
+}
+function ga4MonthRange(t) { const ms = [...t.months].sort(); return [ms[0], ms[ms.length - 1]]; }
+function ga4RangeLabel(t) { const [lo, hi] = ga4MonthRange(t); return lo === hi ? formatMonth(lo) : `${formatMonth(lo)} – ${formatMonth(hi)}`; }
+
+// ── Period-aware queries ──
+function currentPeriodKey() {
+  const v = document.getElementById('filter-period').value;
+  return v === 'all' ? null : v.slice(2);          // 'YYYY-MM' or 'YYYY-Qn'
+}
+function periodMatches(r, pk) { return !pk || r.month === pk || r.quarter === pk; }
+function ga4RowsFor(table, pk, kind = 'submit') {
+  if (!table) return [];
+  return table.rows.filter(r => r.kind === kind && (!table.hasTime || periodMatches(r, pk)));
+}
+function ga4GroupBy(rows, keyFn) {
+  const m = {};
+  rows.forEach(r => { const k = keyFn(r) ?? '(not set)'; m[k] = (m[k] || 0) + r.count; });
+  return Object.entries(m).sort((a, b) => ((a[0] === '(not set)') - (b[0] === '(not set)')) || (b[1] - a[1]));
+}
+
+// GA4 tracked submits ÷ EN submissions. The EN side is filtered by period only (never by
+// Source/Campaign/Device/outliers) and restricted to the months the GA4 export covers.
+function getCoverage(pk) {
+  const T = ga4TotalsTable();
+  if (!T) return null;
+  if (pk && !T.hasTime) return null;
+  const ga4 = ga4RowsFor(T, pk).reduce((a, r) => a + r.count, 0);
+  const wholeExport = !T.hasTime;
+  let en;
+  if (wholeExport) en = allRows.length;
+  else {
+    const [lo, hi] = ga4MonthRange(T);
+    en = allRows.filter(r => r.month !== 'Unknown' && r.month >= lo && r.month <= hi && periodMatches(r, pk)).length;
+  }
+  if (!en) return null;
+  return { ga4, en, ratio: ga4 / en, wholeExport };
+}
+
+// Manual entry wins over the imported page_view count; quarters sum their months
+function getViewsForPeriod(p) {
+  if (!p) return null;
+  if (!p.includes('-Q')) return ga4Views[p] ?? ga4AutoViews[p] ?? null;
+  const months = [...new Set([...Object.keys(ga4Views), ...Object.keys(ga4AutoViews)])].filter(m => quarterOf(m) === p);
+  return months.length ? months.reduce((s, m) => s + (ga4Views[m] ?? ga4AutoViews[m]), 0) : null;
+}
+function allViewsTotal() {
+  const months = [...new Set([...Object.keys(ga4Views), ...Object.keys(ga4AutoViews)])];
+  return months.length ? months.reduce((s, m) => s + (ga4Views[m] ?? ga4AutoViews[m]), 0) : null;
+}
+function adblockMode() {
+  if (!document.getElementById('adblock-toggle')?.checked) return 'off';
+  const measured = document.querySelector('input[name="adblock-mode"]:checked')?.value === 'measured';
+  return (measured && F.hasGA4Events) ? 'measured' : 'manual';
+}
+function adblockPctValue() { return parseInt(document.getElementById('adblock-slider')?.value || AD_BLOCK_DEFAULT, 10); }
+function getAdjustedViews(raw, p) {
+  if (raw == null) return null;
+  const mode = adblockMode();
+  if (mode === 'off') return null;
+  if (mode === 'manual') return Math.round(raw * (1 + adblockPctValue() / 100));
+  const c = getCoverage(p) || getCoverage(null);
+  if (!c) return null;
+  return Math.round(raw / Math.min(1, Math.max(0.2, c.ratio)));
+}
+function adjHeaderSuffix() {
+  const mode = adblockMode();
+  if (mode === 'off') return '';
+  return mode === 'measured' ? ' (measured)' : ` (+${adblockPctValue()}%)`;
+}
+function impliedUpliftLabel(pk) {
+  const c = getCoverage(pk) || getCoverage(null);
+  if (!c) return '—';
+  const ratio = Math.min(1, Math.max(0.2, c.ratio));
+  return `+${Math.round((1 / ratio - 1) * 100)}%`;
+}
+function updateAdblockModeUI() {
+  const radios = document.getElementById('adblock-mode-radios');
+  const slider = document.getElementById('adblock-slider');
+  const badge  = document.getElementById('adblock-pct-badge');
+  const on     = !!document.getElementById('adblock-toggle')?.checked;
+  if (radios) radios.classList.toggle('visible', F.hasGA4Events);
+  if (!F.hasGA4Events) { const man = document.querySelector('input[name="adblock-mode"][value="manual"]'); if (man) man.checked = true; }
+  const mode = adblockMode();
+  if (slider) slider.disabled = mode !== 'manual';
+  if (badge) {
+    badge.textContent = mode === 'measured' ? impliedUpliftLabel(currentPeriodKey()) : `+${adblockPctValue()}%`;
+    badge.classList.toggle('active', on);
+    badge.title = mode === 'measured' ? 'Implied undercount from measured GA4 coverage (1 ÷ coverage − 1)' : '';
+  }
+}
+function onAdblockModeChange() { updateAdblockModeUI(); renderTable(); saveCache(); }
+
+function buildGA4Meta(warnings) {
+  const w = [...warnings];
+  const enMonths = [...new Set(allRows.map(r => r.month).filter(m => m !== 'Unknown'))].sort();
+  const T = ga4TotalsTable();
+  let enMissing = [];
+  if (T && T.hasTime) { const [lo, hi] = ga4MonthRange(T); enMissing = enMonths.filter(m => m < lo || m > hi); }
+  const c = getCoverage(null);
+  if (c && c.ratio > 1) w.push(`GA4 tracked submits exceed EN submissions (${(c.ratio * 100).toFixed(0)}%). Check the exploration filter (test traffic, duplicate parent pages) or whether the EN export is filtered.`);
+  ga4Tables.forEach(t => t.files.forEach(f => {
+    if (f.stepAsDim.length) w.push(`${f.name}: ${f.stepAsDim.join(', ')} appear as dimensions and were ignored — this dashboard reads step data as GA4 sum metrics only.`);
+    if (f.monthOnly)        w.push(`${f.name}: "Month" is a two-digit value with no "Year" column, so rows could not be dated. Add Year to the exploration.`);
+    if (f.assumedSubmits)   w.push(`${f.name}: no "Event name" column, so every row was treated as a ladder submit.`);
+  }));
+  ga4Tables.filter(t => !t.hasTime).forEach(t => w.push(`${t.files.map(f => f.name).join(', ')}: no usable time columns. Its sections show the entire export range and it cannot feed per-period coverage. Add Year + Month (or Date) to the exploration.`));
+  return { enMissing, warnings: w };
+}
+
+function renderGA4ImportReport() {
+  const el = document.getElementById('ga4-import-report');
+  if (!el) return;
+  if (!ga4Tables.length) { el.innerHTML = ''; return; }
+  let html = '';
+  ga4Tables.forEach(t => {
+    const submitRows = t.rows.filter(r => r.kind === 'submit').length;
+    const viewRows   = t.rows.filter(r => r.kind === 'view').length;
+    const sk = { totals: 0, nonNumeric: 0, shortRow: 0, noTime: 0 };
+    const notSet = {}, ignoredEv = {};
+    t.files.forEach(f => {
+      Object.keys(sk).forEach(k => sk[k] += f.skipped[k]);
+      Object.entries(f.notSet).forEach(([k, v]) => notSet[k] = (notSet[k] || 0) + v);
+      Object.entries(f.ignoredEvents).forEach(([k, v]) => ignoredEv[k] = (ignoredEv[k] || 0) + v);
+    });
+    const f0 = t.files[0];
+    html += `<div class="ga4-report-table">`;
+    html += `<div class="ga4-report-file">${t.files.map(f =>
+      `<span class="ga4-file-chip" title="${esc(f.metaLines.join(' · '))}">📄 ${esc(f.name)} <span style="color:var(--mid)">· ${fmt(f.rows)} rows · ${f.delimiter} · ${f.encoding}</span><button class="ga4-remove" data-name="${esc(f.name)}" title="Remove this file">✕</button></span>`
+    ).join('')}</div>`;
+    const chips = Object.entries(t.cols).sort((a, b) => a[1] - b[1]).map(([k, idx]) =>
+      `<span class="ga4-col-chip" title="${esc(f0.header[idx])}">${esc(f0.header[idx])} → ${GA4_KEY_LABEL[k] || k}</span>`);
+    f0.unmapped.forEach(h => chips.push(`<span class="ga4-col-chip unmapped" title="Not recognised — not used">${esc(h)} → ?</span>`));
+    f0.ignoredCols.forEach(h => chips.push(`<span class="ga4-col-chip ignored" title="Known column, not needed">${esc(h)} · ignored</span>`));
+    html += `<div class="ga4-col-chips">${chips.join('')}</div>`;
+    html += `<div class="ga4-report-line">Ladder submits: <strong>${fmt(t.submitTotal)}</strong> (${fmt(submitRows)} rows)${t.viewTotal ? ` · page_views: <strong>${fmt(t.viewTotal)}</strong> (${fmt(viewRows)} rows)` : ''} · skipped: ${sk.totals} totals, ${sk.nonNumeric} non-numeric, ${sk.shortRow} short${sk.noTime ? `, ${sk.noTime} undated` : ''}</div>`;
+    html += `<div class="ga4-report-line">Time: ${t.hasTime ? `${esc(ga4RangeLabel(t))} · ${t.months.size} month${t.months.size > 1 ? 's' : ''} (${esc(t.timeSource)})` : 'no usable time columns — Period filter not applied to this table'}</div>`;
+    const ig = Object.entries(ignoredEv).sort((a, b) => b[1] - a[1]);
+    if (ig.length) html += `<div class="ga4-report-line">Ignored events: ${ig.slice(0, 6).map(([k, v]) => `${esc(k)} (${fmt(v)} rows)`).join(' · ')}</div>`;
+    const ns = Object.entries(notSet).sort((a, b) => b[1] - a[1]);
+    if (ns.length) html += `<div class="ga4-report-line">(not set) submits: ${ns.map(([k, v]) => `${GA4_KEY_LABEL[k]} ${fmt(v)}`).join(' · ')}${(notSet.firstStepName || notSet.firstStepId) ? ' — expected for first step: it is only recorded on the first step of a session' : ''}</div>`;
+    html += `</div>`;
+  });
+  if (ga4Meta?.enMissing?.length) html += `<div class="ga4-report-line">EN months outside the GA4 export range (no coverage computed): ${ga4Meta.enMissing.map(formatMonth).join(', ')}</div>`;
+  (ga4Meta?.warnings || []).forEach(wm => { html += `<div class="ga4-report-warn">⚠ ${esc(wm)}</div>`; });
+  el.innerHTML = html;
+  el.querySelectorAll('.ga4-remove').forEach(b => { b.onclick = ev => { ev.stopPropagation(); removeGA4File(b.dataset.name); }; });
+}
+
+// ── GA4 sections (fill the #ga4-sections placeholder; never rebuild the whole shell) ──
+function buildGA4SectionsShell() {
+  const host = document.getElementById('ga4-sections');
+  if (!host) return;
+  dc('chart-ga4-parent-type');
+  if (!F.hasGA4Events) { host.innerHTML = ''; return; }
+  const cards = [];
+  if (F.hasGA4Label) cards.push(`
+      <div class="chart-card">
+        <div class="chart-title">Opt-Ins Taken <span class="ga4-scope-badge" data-scope="label"></span></div>
+        <div class="chart-subtitle">Tracked submissions by the opt-in step shown (GA4 opt_in_label). Counts every submit, checked or not — PG chips show accepted enrolments</div>
+        <div class="hbar-list wide" id="hbar-ga4-label"></div>
+      </div>`);
+  if (F.hasGA4FirstStep) cards.push(`
+      <div class="chart-card">
+        <div class="chart-title">First Step Shown <span class="ga4-scope-badge" data-scope="first"></span></div>
+        <div class="chart-subtitle" id="ga4-first-step-sub">Which opt-in entrants saw first — a later entry point means the earlier opt-ins were already held</div>
+        <div class="hbar-list wide" id="hbar-ga4-first-step"></div>
+      </div>`);
+  if (F.hasGA4StepMetric) cards.push(`
+      <div class="chart-card">
+        <div class="chart-title">Ladder Position Averages <span class="ga4-scope-badge" data-scope="step"></span></div>
+        <div class="chart-subtitle">GA4 custom metrics are sums; each value is divided by tracked submits</div>
+        <div class="ga4-stat-row" id="ga4-step-stats"></div>
+      </div>`);
+  const gridClass = ['', 'cols-1', 'cols-2', 'cols-3'][cards.length] || 'cols-3';
+  host.innerHTML = `
+    <div class="ga4-block" id="ga4-block">
+      <div class="ga4-block-head">
+        <div class="ga4-block-title">📈 Google Analytics 4 · Ladder Events <span class="ga4-scope-badge" id="ga4-scope-badge"></span></div>
+        <div class="top-bar-meta" style="color:var(--mid)" id="ga4-block-meta"></div>
+      </div>
+      <div class="ga4-filter-note" id="ga4-filter-note">GA4 sections reflect all tracked ladder traffic. Source, Campaign, Device and Outlier filters apply only to the Engaging Networks data.</div>
+      ${F.hasGA4Parent ? `
+      <div class="chart-grid cols-2">
+        <div class="chart-card">
+          <div class="chart-title">Ladder Entry Pages <span class="ga4-scope-badge" data-scope="parent"></span></div>
+          <div class="chart-subtitle">Parent page the ladder was embedded on (GA4 parent_page_name) — top 12</div>
+          <div class="hbar-list wide" id="hbar-ga4-parent"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Entry Page Type</div>
+          <div class="chart-subtitle">Parent page type reported by ENgrid</div>
+          <div class="chart-wrap"><canvas id="chart-ga4-parent-type"></canvas></div>
+        </div>
+      </div>` : ''}
+      ${cards.length ? `<div class="chart-grid ${gridClass}">${cards.join('')}</div>` : ''}
+    </div>`;
+}
+
+function renderGA4Sections() {
+  if (!document.getElementById('ga4-block')) return;
+  const pk = currentPeriodKey();
+  const periodEl = document.getElementById('filter-period');
+  const periodLabel = pk ? (periodEl.options[periodEl.selectedIndex]?.text || pk) : '';
+  const setScope = (table, el) => {
+    if (!el) return;
+    const whole = !table || !table.hasTime;
+    el.textContent = whole ? 'Entire export range' : (pk ? `Filtered to ${periodLabel}` : '');
+    el.classList.toggle('whole', whole);
+  };
+  const othersActive = ['filter-source', 'filter-campaign', 'filter-device'].some(id => {
+    const el = document.getElementById(id);
+    return el && el.closest('.filter-group').style.display !== 'none' && el.value !== 'all';
+  });
+  document.getElementById('ga4-filter-note')?.classList.toggle('active', othersActive);
+
+  const T = ga4TotalsTable();
+  setScope(T, document.getElementById('ga4-scope-badge'));
+  const tracked = ga4RowsFor(T, pk).reduce((a, r) => a + r.count, 0);
+  const meta = document.getElementById('ga4-block-meta');
+  if (meta) meta.textContent = `${fmt(tracked)} tracked submits${T && T.hasTime ? ` · export covers ${ga4RangeLabel(T)}` : ''}`;
+
+  if (F.hasGA4Parent) {
+    const P = ga4TableFor(['parentName', 'parentId', 'parentType']);
+    const rows = ga4RowsFor(P, pk);
+    setScope(P, document.querySelector('[data-scope="parent"]'));
+    hbar('hbar-ga4-parent', ga4GroupBy(rows, r => r.parentName || (r.parentId ? `Page #${r.parentId}` : null)).slice(0, 12), PAL.moss);
+    const types = ga4GroupBy(rows, r => ga4PageTypeLabel(r.parentType));
+    const total = types.reduce((a, [, v]) => a + v, 0);
+    dc('chart-ga4-parent-type');
+    const canvas = document.getElementById('chart-ga4-parent-type');
+    if (canvas) charts['chart-ga4-parent-type'] = new Chart(canvas, {
+      type: 'bar',
+      data: { labels: types.map(([k]) => k), datasets: [{ data: types.map(([, v]) => v),
+              backgroundColor: [PAL.moss, PAL.amber, PAL.fern, PAL.bark, PAL.mist, '#aaa', '#ccc'].slice(0, types.length), borderRadius: 4, borderSkipped: false }] },
+      options: { ...BASE, indexAxis: 'y',
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.raw)}  (${total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0}%)` } } },
+        scales: { x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: 'DM Mono', size: 10 }, color: '#6b7066' } },
+                  y: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 12 }, color: '#1c1c1a' } } } }
+    });
+  }
+  if (F.hasGA4Label) {
+    const L = ga4TableFor(['optinLabel', 'optinId']);
+    setScope(L, document.querySelector('[data-scope="label"]'));
+    hbar('hbar-ga4-label', ga4GroupBy(ga4RowsFor(L, pk), r => r.optinLabel || (r.optinId ? `Opt-in #${r.optinId}` : null)), PAL.sage);
+  }
+  if (F.hasGA4FirstStep) {
+    const S = ga4TableFor(['firstStepName', 'firstStepId']);
+    setScope(S, document.querySelector('[data-scope="first"]'));
+    const rows = ga4RowsFor(S, pk);
+    const starters = rows.filter(r => r.firstStepName != null || r.firstStepId != null);
+    const nStart = starters.reduce((a, r) => a + r.count, 0), nAll = rows.reduce((a, r) => a + r.count, 0);
+    hbar('hbar-ga4-first-step', ga4GroupBy(starters, r => r.firstStepName || `Opt-in #${r.firstStepId}`), PAL.fern);
+    const sub = document.getElementById('ga4-first-step-sub');
+    if (sub) sub.textContent = nStart
+      ? `GA4 ladder starters: ${fmt(nStart)} · GA4 depth ratio: ${(nAll / nStart).toFixed(2)}× (tracked submits ÷ starters)`
+      : 'No first-step submissions in this period';
+  }
+  if (F.hasGA4StepMetric) {
+    const ST = ga4StepTable();
+    setScope(ST, document.querySelector('[data-scope="step"]'));
+    const st = ga4StepAverages(ga4RowsFor(ST, pk));
+    const pills = [
+      [st.pos,  'Avg ladder position at submit', v => v.toFixed(2)],
+      [st.len,  'Configured ladder length',       v => v.toFixed(1)],
+      [st.subs, 'Avg submissions per session',    v => v.toFixed(2)],
+    ].map(([v, label, f]) => v == null ? '' : `<div class="ga4-stat-pill"><div class="ga4-stat-value">${f(v)}</div><div class="ga4-stat-label">${label}</div></div>`).join('');
+    const el = document.getElementById('ga4-step-stats');
+    if (el) el.innerHTML = pills || '<div class="chart-subtitle">No step metrics in this period</div>';
+  }
+}
+function ga4StepAverages(rows) {
+  const avg = key => { const rs = rows.filter(r => r[key] != null); const n = rs.reduce((a, r) => a + r.count, 0); return n ? rs.reduce((a, r) => a + r[key], 0) / n : null; };
+  return { pos: avg('stepSum'), len: avg('totalStepsSum'), subs: avg('submissionSum') };
+}
+
+// Everything the executive summary needs from GA4 for the current selection
+function ga4SummaryData(pk) {
+  const T = ga4TotalsTable();
+  const submits = ga4RowsFor(T, pk).reduce((a, r) => a + r.count, 0);
+  const cov = getCoverage(pk);
+  const pRows = ga4RowsFor(ga4TableFor(['parentName', 'parentId', 'parentType']), pk);
+  const pages = {};
+  pRows.forEach(r => {
+    const k = r.parentName || (r.parentId ? `Page #${r.parentId}` : '(not set)');
+    const e = pages[k] = pages[k] || { count: 0, types: {} };
+    e.count += r.count;
+    const ty = ga4PageTypeLabel(r.parentType);
+    e.types[ty] = (e.types[ty] || 0) + r.count;
+  });
+  const pageList = Object.entries(pages).sort((a, b) => b[1].count - a[1].count)
+    .map(([name, e]) => ({ name, count: e.count, type: Object.entries(e.types).sort((a, b) => b[1] - a[1])[0][0] }));
+  const types  = ga4GroupBy(pRows, r => ga4PageTypeLabel(r.parentType));
+  const labels = ga4GroupBy(ga4RowsFor(ga4TableFor(['optinLabel', 'optinId']), pk), r => r.optinLabel || (r.optinId ? `Opt-in #${r.optinId}` : null));
+  const sRows = ga4RowsFor(ga4TableFor(['firstStepName', 'firstStepId']), pk);
+  const startRows = sRows.filter(r => r.firstStepName != null || r.firstStepId != null);
+  const starters = startRows.reduce((a, r) => a + r.count, 0);
+  const sAll = sRows.reduce((a, r) => a + r.count, 0);
+  const firstSteps = ga4GroupBy(startRows, r => r.firstStepName || `Opt-in #${r.firstStepId}`);
+  const views = hasAnyGA4Data() ? (pk ? getViewsForPeriod(pk) : allViewsTotal()) : null;
+  return {
+    submits, cov, wholeExport: !!(T && !T.hasTime),
+    starters, ga4Depth: starters ? (sAll / starters).toFixed(2) : null,
+    startRate: (starters && views) ? ((starters / views) * 100).toFixed(2) : null,
+    impliedUplift: cov ? impliedUpliftLabel(pk) : null,
+    pages: pageList, types, labels, firstSteps,
+    stepStats: F.hasGA4StepMetric ? ga4StepAverages(ga4RowsFor(ga4StepTable(), pk)) : null,
+    files: [...new Set(ga4Tables.flatMap(t => t.files.map(f => f.name)))],
+    range: T && T.hasTime ? ga4RangeLabel(T) : null,
+  };
 }
 
 // ════════════════════════════════════════════════
@@ -833,6 +1552,7 @@ function buildCachePayload() {
     ga4Views:       {...ga4Views},
     adblockOn:      document.getElementById('adblock-toggle')?.checked ?? false,
     adblockPct:     parseInt(document.getElementById('adblock-slider')?.value || AD_BLOCK_DEFAULT, 10),
+    adblockMode:    document.querySelector('input[name="adblock-mode"]:checked')?.value || 'manual',
     savedAt:        Date.now(),
   };
 }
@@ -867,6 +1587,9 @@ function applyRestoredCache(cached) {
       adBadge.classList.toggle('active', cached.adblockOn);
     }
   }
+  const modeRadio = document.querySelector(`input[name="adblock-mode"][value="${cached.adblockMode === 'measured' ? 'measured' : 'manual'}"]`);
+  if (modeRadio) modeRadio.checked = true;
+  updateAdblockModeUI();
 
   // Re-run filters + table with restored state
   applyFilters();
@@ -1018,6 +1741,9 @@ function buildDashboardShell() {
       </div>
     </div>` : ''}
 
+    <!-- GA4 ladder event sections — filled by buildGA4SectionsShell() when a GA4 export is imported -->
+    <div id="ga4-sections"></div>
+
     <!-- Period breakdown table — includes GA4 input section -->
     <div class="chart-card" style="animation-delay:0.35s">
       <div class="chart-title">Period Breakdown</div>
@@ -1028,16 +1754,24 @@ function buildDashboardShell() {
         <div class="ga4-panel-header" onclick="toggleGA4Panel()">
           <div class="ga4-panel-title">
             <span class="ga4-panel-icon">📊</span>
-            Add GA4 Pageview Data
-            <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);margin-left:4px;">optional · unlocks conversion rate columns</span>
+            GA4 Data
+            <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);margin-left:4px;">optional · import an Exploration export or enter monthly pageviews · unlocks coverage &amp; conversion rate columns</span>
           </div>
           <span class="ga4-panel-chevron">▼</span>
         </div>
         <div class="ga4-panel-body">
+          <div class="ga4-drop" id="ga4-drop" onclick="document.getElementById('ga4-file-input').click()"
+               ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')"
+               ondrop="event.preventDefault();this.classList.remove('drag-over');handleDroppedFiles(event.dataTransfer.files,{onDashboard:true})">
+            <div class="ga4-drop-label"><strong>Drop GA4 Exploration exports here</strong> (CSV or TSV) or click to browse</div>
+            <div class="ga4-drop-hint">ENGRID_OPTIN_LADDER_SUBMIT rows unlock the GA4 sections · page_view rows auto-fill the monthly views below</div>
+          </div>
+          <div class="ga4-import-report" id="ga4-import-report"></div>
           <div class="ga4-note">
             <strong>⚠ Ad blocker caveat:</strong> GA4 uses client-side tracking, which is blocked by ad blockers and privacy tools (uBlock Origin, Brave, Firefox Enhanced Tracking Protection, Safari ITP). Your reported pageview counts may understate true traffic — typically by <strong>15–35%</strong> for nonprofit audiences. Use the adjustment toggle below to apply a correction factor.
           </div>
           <div class="ga4-grid" id="ga4-inputs"></div>
+          <div class="ga4-auto-note" id="ga4-auto-note"></div>
           <div class="ga4-adblock-row">
             <div class="ga4-adblock-toggle-wrap">
               <label class="outlier-toggle">
@@ -1049,6 +1783,10 @@ function buildDashboardShell() {
                 <div class="ga4-adblock-sublabel">Inflate GA4 views to estimate true traffic</div>
               </div>
             </div>
+            <div class="ga4-mode-radios" id="adblock-mode-radios">
+              <label><input type="radio" name="adblock-mode" value="measured" onchange="onAdblockModeChange()"> Measured (GA4 coverage)</label>
+              <label><input type="radio" name="adblock-mode" value="manual" checked onchange="onAdblockModeChange()"> Manual %</label>
+            </div>
             <div class="ga4-slider-wrap">
               <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--mid);">+0%</span>
               <input type="range" class="ga4-slider" id="adblock-slider" min="0" max="60" value="25" step="1" disabled oninput="onAdblockSlider()">
@@ -1056,7 +1794,7 @@ function buildDashboardShell() {
               <span class="ga4-pct-badge" id="adblock-pct-badge">+25%</span>
             </div>
             <div style="font-size:11px;color:var(--mid);max-width:260px;line-height:1.4;">
-              Industry avg for US nonprofits: ~<strong>25%</strong> undercount. Ranges from 15% (older audiences) to 35%+ (advocacy / tech-savvy audiences). Source: GWI / Blockthrough 2024.
+              Manual: industry avg for US nonprofits is ~<strong>25%</strong> undercount (15% older audiences, 35%+ advocacy / tech-savvy; GWI / Blockthrough 2024). Measured: divides views by the GA4 coverage ratio (tracked submits ÷ EN submissions) instead of a guess.
             </div>
           </div>
         </div>
@@ -1200,6 +1938,16 @@ function renderKPIs() {
     kpis.push({label:'Mobile Share',value:mobilePct+'%',sub:fmt(mobileCount)+' of opt-ins',accent:''});
   }
 
+  if (F.hasGA4Events) {
+    const c = getCoverage(currentPeriodKey());
+    kpis.push({
+      label:'GA4 Coverage',
+      value: c ? (c.ratio*100).toFixed(1)+'%' : '—',
+      sub:   c ? `${fmt(c.ga4)} GA4 ÷ ${fmt(c.en)} EN submits${c.wholeExport ? ' · entire export' : ''}` : 'no GA4 rows in this period',
+      accent:'accent-sage'
+    });
+  }
+
   document.getElementById('kpi-row').innerHTML = kpis.map((k,i) =>
     `<div class="kpi-card ${k.accent}" style="animation-delay:${i*0.05}s">
       <div class="kpi-label">${k.label}</div>
@@ -1231,7 +1979,7 @@ function hbar(containerId, entries, color) {
   const max   = entries.length>0?entries[0][1]:1;
   el.innerHTML = entries.map(([label,count]) =>
     `<div class="hbar-item">
-      <span class="hbar-label" title="${label}">${label}</span>
+      <span class="hbar-label" title="${esc(label)}">${esc(label)}</span>
       <div class="hbar-track"><div class="hbar-fill" style="width:${(count/max)*100}%;background:${color}"></div></div>
       <span class="hbar-count">${fmt(count)}</span>
       <span class="hbar-pct">${total>0?((count/total)*100).toFixed(1):0}%</span>
@@ -1445,9 +2193,10 @@ function renderDeviceBrowserSection() {
 function renderTable() {
   const pd      = getPeriodData();
   const gran    = document.getElementById('filter-granularity').value;
-  const hasGA4  = hasAnyGA4Data();
-  const adblockOn  = document.getElementById('adblock-toggle')?.checked;
-  const adblockPct = parseInt(document.getElementById('adblock-slider')?.value || AD_BLOCK_DEFAULT, 10);
+  updateAdblockModeUI();
+  const hasGA4  = hasAnyGA4Data();                       // views entered or imported → views/CVR columns
+  const hasCov  = F.hasGA4Events && F.hasGA4Time;        // GA4 submits with months → coverage columns
+  const adblockOn = adblockMode() !== 'off';
   const tbody   = document.getElementById('period-table-body');
   const thead   = document.getElementById('period-table-head');
   tbody.innerHTML = '';
@@ -1455,18 +2204,19 @@ function renderTable() {
   // Update subtitle
   const subtitle = document.getElementById('period-table-subtitle');
   if (subtitle) {
-    subtitle.textContent = hasGA4
-      ? 'Participants, opt-ins, depth ratio, and conversion rate vs GA4 pageviews'
+    subtitle.textContent = (hasGA4 || hasCov)
+      ? `Participants, opt-ins, depth ratio${hasCov ? ', GA4 tracking coverage' : ''}${hasGA4 ? ', and conversion rate vs GA4 pageviews' : ''}`
       : 'Participants, opt-ins, and depth ratio — months grouped under quarters';
   }
 
   // Build header
   if (thead) {
     let extraCols = '';
+    if (hasCov) extraCols += `<th class="ga4-col">GA4 Submits</th><th class="ga4-col">Coverage</th>`;
     if (hasGA4) {
-      extraCols = `
+      extraCols += `
         <th class="ga4-col">GA4 Views</th>
-        <th class="ga4-col">Adj. Views${adblockOn ? ` (+${adblockPct}%)` : ''}</th>
+        <th class="ga4-col">Adj. Views${adjHeaderSuffix()}</th>
         <th class="ga4-col">CVR (raw)</th>
         ${adblockOn ? '<th class="ga4-col">CVR (adj.)</th>' : ''}
       `;
@@ -1481,28 +2231,40 @@ function renderTable() {
   function cvrCell(participants, views, cls='') {
     if (!views) return { html: `<td class="views-cell">—</td>`, error: false };
     const pct = (participants / views) * 100;
-    const error = pct > 100;
-    return { html: `<td class="cvr-cell ${cls}">${pct.toFixed(2)}%</td>`, error };
+    return { html: `<td class="cvr-cell ${cls}">${pct.toFixed(2)}%</td>`, error: pct > 100 };
   }
 
-  function viewsCell(raw, adjusted, adblockOn) {
-    if (!raw) return `<td class="views-cell">—</td><td class="views-cell">—</td>`;
-    const adjStr = adblockOn ? fmt(adjusted) : '—';
-    return `<td class="views-cell">${fmt(raw)}</td><td class="views-cell ${adblockOn ? 'adjusted' : ''}">${adjStr}</td>`;
+  function viewsCells(raw, adj) {
+    if (raw == null) return `<td class="views-cell">—</td><td class="views-cell">—</td>`;
+    return `<td class="views-cell">${fmt(raw)}</td><td class="views-cell ${adj != null ? 'adjusted' : ''}">${adj != null ? fmt(adj) : '—'}</td>`;
+  }
+
+  function covCells(pk) {
+    const c = getCoverage(pk);
+    if (!c) return { html: `<td class="views-cell">—</td><td class="views-cell">—</td>`, error: false };
+    return { html: `<td class="views-cell">${fmt(c.ga4)}</td><td class="cvr-cell">${(c.ratio * 100).toFixed(1)}%</td>`, error: c.ratio > 1 };
+  }
+
+  // GA4-derived cells for one period key (month or quarter) — shared by month rows and quarter subtotals
+  function ga4Cells(pk, participants) {
+    let html = '', error = false;
+    if (hasCov) { const c = covCells(pk); html += c.html; error = error || c.error; }
+    if (hasGA4) {
+      const raw = getViewsForPeriod(pk);
+      const adj = getAdjustedViews(raw, pk);
+      const rawCvr = cvrCell(participants, raw);
+      const adjCvr = adblockOn ? cvrCell(participants, adj, 'adjusted') : { html: '', error: false };
+      html += viewsCells(raw, adj) + rawCvr.html + adjCvr.html;
+      error = error || rawCvr.error || adjCvr.error;
+    }
+    return { html, error };
   }
 
   function rowCells(d) {
     const base = `<td>${d.label}</td><td>${fmt(d.participants)}</td><td>${fmt(d.optins)}</td>
       <td><span class="ratio-badge">${d.ratio}×</span></td><td>${d.oneStepPct}%</td><td>${d.multiStepPct}%</td>`;
-    if (!hasGA4) return { html: base, error: false };
-    const raw  = gran === 'monthly' ? (ga4Views[d.period] ?? null) : null;
-    const adj  = raw != null ? Math.round(raw * (1 + (adblockOn ? adblockPct : 0) / 100)) : null;
-    const rawCvr = cvrCell(d.participants, raw);
-    const adjCvr = adblockOn ? cvrCell(d.participants, adj, 'adjusted') : { html: '', error: false };
-    return {
-      html: base + viewsCell(raw, adj, adblockOn) + rawCvr.html + adjCvr.html,
-      error: rawCvr.error || adjCvr.error
-    };
+    const g = ga4Cells(d.period, d.participants);
+    return { html: base + g.html, error: g.error };
   }
 
   function tr(cells, cls='') {
@@ -1514,11 +2276,7 @@ function renderTable() {
 
   if (gran === 'monthly') {
     const qMap = {};
-    pd.forEach(d => {
-      const [y, mo] = d.period.split('-');
-      const qk = `${y}-Q${Math.ceil(parseInt(mo) / 3)}`;
-      (qMap[qk] = qMap[qk] || []).push(d);
-    });
+    pd.forEach(d => { const qk = quarterOf(d.period); (qMap[qk] = qMap[qk] || []).push(d); });
     Object.entries(qMap).sort(([a], [b]) => a.localeCompare(b)).forEach(([qk, months]) => {
       months.forEach(d => {
         const { html, error } = rowCells(d);
@@ -1528,18 +2286,10 @@ function renderTable() {
       const qP  = months.reduce((a, b) => a + b.participants, 0);
       const qO  = months.reduce((a, b) => a + b.optins, 0);
       const qRatio = qP > 0 ? (qO / qP).toFixed(2) : '0.00';
-      let qExtra = '', qError = false;
-      if (hasGA4) {
-        const qRaw = months.reduce((sum, d) => sum + (ga4Views[d.period] ?? 0), 0) || null;
-        const qAdj = qRaw != null ? Math.round(qRaw * (1 + (adblockOn ? adblockPct : 0) / 100)) : null;
-        const qRawCvr = cvrCell(qP, qRaw);
-        const qAdjCvr = adblockOn ? cvrCell(qP, qAdj, 'adjusted') : { html: '', error: false };
-        qExtra = viewsCell(qRaw, qAdj, adblockOn) + qRawCvr.html + qAdjCvr.html;
-        qError = qRawCvr.error || qAdjCvr.error;
-      }
+      const g = ga4Cells(qk, qP);
       tr(`<td>${qk} Total</td><td>${fmt(qP)}</td><td>${fmt(qO)}</td>
-          <td><span class="ratio-badge">${qRatio}×</span></td><td>—</td><td>—</td>${qExtra}`,
-        qError ? 'q-row cvr-error' : 'q-row');
+          <td><span class="ratio-badge">${qRatio}×</span></td><td>—</td><td>—</td>${g.html}`,
+        g.error ? 'q-row cvr-error' : 'q-row');
     });
   } else {
     pd.forEach(d => {
@@ -1707,6 +2457,8 @@ function buildExecutiveSummaryHTML() {
   if (outlierOn && outlierThreshold < Infinity) drillDowns.push(`Outliers excluded (≤ ${outlierThreshold} steps)`);
 
   const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const g = (F.hasGA4Events || F.hasGA4Views) ? ga4SummaryData(currentPeriodKey()) : null;
+  const otherFilterActive = drillDowns.some(d => /^(Source|Campaign|Device):/.test(d));
 
   // ── Build HTML ──
   let html = `<div style="font-family:Georgia,serif;max-width:640px;color:#1c1c1a;line-height:1.5;">`;
@@ -1723,6 +2475,9 @@ function buildExecutiveSummaryHTML() {
   html += `<p style="margin:0 0 4px;font-size:13px;"><strong>Date Range:</strong> ${dateRangeStr} &nbsp;·&nbsp; <strong>View:</strong> ${gran}</p>`;
   if (drillDowns.length) {
     html += `<p style="margin:0;font-size:13px;"><strong>Filters:</strong> ${drillDowns.join(' &nbsp;·&nbsp; ')}</p>`;
+  }
+  if (g && g.files.length) {
+    html += `<p style="margin:4px 0 0;font-size:13px;"><strong>GA4:</strong> ${esc(g.files.join(', '))}${g.range ? ` &nbsp;·&nbsp; ${esc(g.range)}` : ''}${(otherFilterActive && F.hasGA4Events) ? ' &nbsp;·&nbsp; <em>GA4 sections are not filtered by Source, Campaign or Device</em>' : ''}</p>`;
   }
   html += `</div>`;
 
@@ -1801,6 +2556,57 @@ function buildExecutiveSummaryHTML() {
     html += sectionSpacer();
   }
 
+  // GA4 ladder events — only for clients supplying a GA4 export
+  if (g && F.hasGA4Events) {
+    const muted = s => `<span style="color:#6b7066;font-size:12px;">${s}</span>`;
+    html += sectionHeading('GA4 Tracking Coverage');
+    const covRows = [
+      ['GA4 Tracked Submits',   `<strong>${fmt(g.submits)}</strong>${g.wholeExport ? ' ' + muted('(entire export)') : ''}`],
+      ['EN Opt-In Submissions', `<strong>${g.cov ? fmt(g.cov.en) : '—'}</strong>`],
+      ['Tracking Coverage',     g.cov ? `<strong>${(g.cov.ratio*100).toFixed(1)}%</strong> ${muted(`(implied undercount ${g.impliedUplift})`)}` : '—'],
+    ];
+    if (g.starters)          covRows.push(['GA4 Ladder Starters', `<strong>${fmt(g.starters)}</strong> ${muted(`(GA4 depth ratio ${g.ga4Depth}×)`)}`]);
+    if (g.startRate != null) covRows.push(['Start Rate', `<strong>${g.startRate}%</strong> ${muted('(GA4 starters ÷ GA4 ladder views)')}`]);
+    const covMeta = (g.cov && g.cov.ratio > 1) ? covRows.map((_, i) => i === 2 ? {bg:'#fde8e8', color:'#9b1c1c'} : null) : null;
+    html += summaryTable(['Metric', 'Value'], covRows, covMeta);
+    html += sectionSpacer();
+
+    const share = (c, tot) => `${tot > 0 ? ((c / tot) * 100).toFixed(1) : 0}%`;
+    if (g.pages.length) {
+      const tot = g.pages.reduce((a, p) => a + p.count, 0);
+      html += sectionHeading('Ladder Entry Pages (GA4)');
+      html += summaryTable(['Page', 'Type', 'Submits', 'Share'], g.pages.slice(0, 8).map(p => [esc(p.name), esc(p.type), fmt(p.count), share(p.count, tot)]));
+      html += sectionSpacer();
+    }
+    if (g.types.length > 1) {
+      const tot = g.types.reduce((a, [, v]) => a + v, 0);
+      html += sectionHeading('Entry Page Type (GA4)');
+      html += summaryTable(['Page Type', 'Submits', 'Share'], g.types.map(([t, c]) => [esc(t), fmt(c), share(c, tot)]));
+      html += sectionSpacer();
+    }
+    if (g.labels.length) {
+      const tot = g.labels.reduce((a, [, v]) => a + v, 0);
+      html += sectionHeading('Opt-Ins Taken (GA4)');
+      html += summaryTable(['Opt-In Step', 'Submits', 'Share'], g.labels.slice(0, 8).map(([l, c]) => [esc(l), fmt(c), share(c, tot)]));
+      html += sectionSpacer();
+    }
+    if (g.firstSteps.length) {
+      const tot = g.firstSteps.reduce((a, [, v]) => a + v, 0);
+      html += sectionHeading('First Step Shown (GA4)');
+      html += summaryTable(['First Step', 'Starters', 'Share'], g.firstSteps.slice(0, 5).map(([l, c]) => [esc(l), fmt(c), share(c, tot)]));
+      html += sectionSpacer();
+    }
+    if (g.stepStats && (g.stepStats.pos != null || g.stepStats.len != null || g.stepStats.subs != null)) {
+      const hs = [], vs = [];
+      if (g.stepStats.pos  != null) { hs.push('Avg Position at Submit');    vs.push(g.stepStats.pos.toFixed(2)); }
+      if (g.stepStats.len  != null) { hs.push('Ladder Length');             vs.push(g.stepStats.len.toFixed(1)); }
+      if (g.stepStats.subs != null) { hs.push('Avg Submissions / Session'); vs.push(g.stepStats.subs.toFixed(2)); }
+      html += sectionHeading('Ladder Position Averages (GA4)');
+      html += summaryTable(hs, [vs]);
+      html += sectionSpacer();
+    }
+  }
+
   // Depth distribution
   const dc2 = {};
   depths.forEach(d=>{const b=d<=10?d:'10+';dc2[b]=(dc2[b]||0)+1;});
@@ -1816,40 +2622,40 @@ function buildExecutiveSummaryHTML() {
   );
   html += sectionSpacer();
 
-  // Conversion Rate — always shown, per period
+  // Performance by Period — always shown; GA4 columns only when they carry data
   {
-    const adblockOn  = document.getElementById('adblock-toggle')?.checked;
-    const adblockPct = parseInt(document.getElementById('adblock-slider')?.value || AD_BLOCK_DEFAULT, 10);
     const pd         = getPeriodData();
-    const granRaw    = document.getElementById('filter-granularity').value;
+    const hasGA4Data = hasAnyGA4Data();
+    const hasAdj     = hasGA4Data && adblockMode() !== 'off';
+    const hasCov     = F.hasGA4Events && F.hasGA4Time;
 
-    // Determine which optional columns actually have any data
-    const hasGA4Data   = hasAnyGA4Data() && granRaw === 'monthly';
-    const hasAdj       = hasGA4Data && adblockOn;
-
-    // Build column headers — only include columns with data
     const headers = ['Period', 'Participants', 'Total Opt-Ins'];
+    if (hasCov)     headers.push('GA4 Submits', 'Coverage');
     if (hasGA4Data) headers.push('GA4 Views');
-    if (hasAdj)     headers.push('Adj. Views');
+    if (hasAdj)     headers.push(`Adj. Views${adjHeaderSuffix()}`);
     if (hasGA4Data) headers.push('CVR (raw)');
     if (hasAdj)     headers.push('CVR (adj.)');
 
     const rows = pd.map(d => {
-      const raw  = hasGA4Data ? (ga4Views[d.period] ?? null) : null;
-      const adj  = (hasAdj && raw != null) ? Math.round(raw * (1 + adblockPct / 100)) : null;
-      const cvrRawNum = (raw != null && raw > 0) ? (d.participants / raw) * 100 : null;
-      const cvrAdjNum = (adj != null && adj > 0) ? (d.participants / adj) * 100 : null;
-      const cvrRaw = cvrRawNum != null ? cvrRawNum.toFixed(2) + '%' : '—';
-      const cvrAdj = cvrAdjNum != null ? cvrAdjNum.toFixed(2) + '%' : '—';
-
       const cells = [d.label, fmt(d.participants), fmt(d.optins)];
-      if (hasGA4Data) cells.push(raw != null ? fmt(raw) : '—');
-      if (hasAdj)     cells.push(adj != null ? fmt(adj) : '—');
-      if (hasGA4Data) cells.push(cvrRaw);
-      if (hasAdj)     cells.push(cvrAdj);
-
-      // Flag row if CVR exceeds 100% — indicates bad GA4 input
-      const erroneous = (cvrRawNum != null && cvrRawNum > 100) || (cvrAdjNum != null && cvrAdjNum > 100);
+      let erroneous = false;
+      if (hasCov) {
+        const c = getCoverage(d.period);
+        cells.push(c ? fmt(c.ga4) : '—', c ? `${(c.ratio * 100).toFixed(1)}%` : '—');
+        if (c && c.ratio > 1) erroneous = true;
+      }
+      if (hasGA4Data) {
+        const raw = getViewsForPeriod(d.period);
+        const adj = hasAdj ? getAdjustedViews(raw, d.period) : null;
+        const cvrRawNum = (raw != null && raw > 0) ? (d.participants / raw) * 100 : null;
+        const cvrAdjNum = (adj != null && adj > 0) ? (d.participants / adj) * 100 : null;
+        cells.push(raw != null ? fmt(raw) : '—');
+        if (hasAdj) cells.push(adj != null ? fmt(adj) : '—');
+        cells.push(cvrRawNum != null ? cvrRawNum.toFixed(2) + '%' : '—');
+        if (hasAdj) cells.push(cvrAdjNum != null ? cvrAdjNum.toFixed(2) + '%' : '—');
+        // Flag row if a rate exceeds 100% — indicates bad GA4 input or an unfiltered export
+        if ((cvrRawNum != null && cvrRawNum > 100) || (cvrAdjNum != null && cvrAdjNum > 100)) erroneous = true;
+      }
       return { cells, erroneous };
     });
 
@@ -1901,6 +2707,7 @@ function buildExecutiveSummaryPlaintext() {
     `Prepared by 4Site Studios · 4sitestudios.com`,
     `Date Range: ${dateRangeStr}  ·  View: ${gran}`,
     drillDowns.length ? `Filters: ${drillDowns.join('  ·  ')}` : '',
+    (F.hasGA4Events || F.hasGA4Views) ? `GA4: ${[...new Set(ga4Tables.flatMap(t => t.files.map(f => f.name)))].join(', ')}` : undefined,
     D,
     '',
     'PARTICIPATION',
@@ -1919,6 +2726,26 @@ function buildExecutiveSummaryPlaintext() {
     const s=Object.entries(mc).sort((a,b)=>b[1]-a[1]),tot=s.reduce((a,[,v])=>a+v,0);
     lines.push('','TRAFFIC SOURCE MIX');
     s.slice(0,5).forEach(([src,c])=>lines.push(`  ${src.padEnd(22)}${fmt(c).padStart(7)}  (${tot>0?((c/tot)*100).toFixed(1):0}%)`));
+  }
+
+  if (F.hasGA4Events) {
+    const g = ga4SummaryData(currentPeriodKey());
+    lines.push('', 'GA4 TRACKING COVERAGE');
+    lines.push(`  GA4 Tracked Submits   ${fmt(g.submits)}${g.wholeExport ? '  (entire export)' : ''}`);
+    lines.push(`  EN Opt-In Submissions ${g.cov ? fmt(g.cov.en) : '—'}`);
+    lines.push(`  Coverage              ${g.cov ? `${(g.cov.ratio*100).toFixed(1)}%  (implied undercount ${g.impliedUplift})` : '—'}`);
+    if (g.starters)          lines.push(`  GA4 Ladder Starters   ${fmt(g.starters)}  (GA4 depth ratio ${g.ga4Depth}×)`);
+    if (g.startRate != null) lines.push(`  Start Rate            ${g.startRate}%  (starters ÷ ladder views)`);
+    if (g.pages.length) {
+      const tot = g.pages.reduce((a,p)=>a+p.count,0);
+      lines.push('', 'LADDER ENTRY PAGES (GA4)');
+      g.pages.slice(0,5).forEach(p => lines.push(`  ${p.name.slice(0,22).padEnd(22)}${fmt(p.count).padStart(7)}  (${tot>0?((p.count/tot)*100).toFixed(1):0}%)  ${p.type}`));
+    }
+    if (g.labels.length) {
+      const tot = g.labels.reduce((a,[,v])=>a+v,0);
+      lines.push('', 'OPT-INS TAKEN (GA4)');
+      g.labels.slice(0,5).forEach(([l,c]) => lines.push(`  ${String(l).slice(0,22).padEnd(22)}${fmt(c).padStart(7)}  (${tot>0?((c/tot)*100).toFixed(1):0}%)`));
+    }
   }
 
   const dc2={};
@@ -2029,6 +2856,9 @@ function resetDashboard() {
   outlierThreshold = Infinity; outlierExcluded = 0;
   currentFingerprint = null;
   Object.keys(ga4Views).forEach(k => delete ga4Views[k]);
+  Object.keys(ga4AutoViews).forEach(k => delete ga4AutoViews[k]);
+  ga4Tables = []; ga4Meta = null; pendingGA4Files = []; ga4AutoCorrection = false;
+  document.getElementById('ga4-file-input').value = '';
   Object.keys(F).forEach(k=>F[k]=false);
   Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
   try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
