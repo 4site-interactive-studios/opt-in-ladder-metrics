@@ -64,7 +64,7 @@ const tableInfo = (page, i = 0) => page.evaluate(i => {
   const t = ga4Tables[i]; if (!t) return null; const f = t.files[0];
   return { signature: t.signature, hasTime: t.hasTime, timeSource: t.timeSource, months: [...t.months].sort(), submitTotal: t.submitTotal, viewTotal: t.viewTotal,
            files: t.files.map(f => f.name), delimiter: f.delimiter, encoding: f.encoding, skipped: f.skipped, notSet: f.notSet, ignoredEvents: f.ignoredEvents,
-           unmapped: f.unmapped, ignoredCols: f.ignoredCols, stepAsDim: f.stepAsDim, monthOnly: f.monthOnly, metaLines: f.metaLines };
+           unmapped: f.unmapped, ignoredCols: f.ignoredCols, stepAsDim: f.stepAsDim, monthOnly: f.monthOnly, metaLines: f.metaLines, zeroMetrics: f.zeroMetrics, rangeText: f.rangeText, label: f.label };
 }, i);
 
 console.log('\n1. EN only');
@@ -96,6 +96,7 @@ console.log('\n2. EN + basic GA4 dropped together');
   check('CSV utf-8, Year+Month, 6 months', t.delimiter === 'CSV' && t.encoding === 'UTF-8' && t.timeSource === 'Year + Month' && t.months.length === 6, JSON.stringify(t));
   check('submit total', t.submitTotal === expected.totalGA4, `${t.submitTotal} vs ${expected.totalGA4}`);
   check('meta lines captured', t.metaLines.length >= 3, JSON.stringify(t.metaLines));
+  check('file label from header tab line', t.label === 'Ladder Submits', t.label);
   check('no unmapped columns', t.unmapped.length === 0, JSON.stringify(t.unmapped));
   check('first step (not set) reported for followup steps', t.notSet.firstStepName > 0);
   const k = await kpi(page, 'GA4 Coverage');
@@ -135,7 +136,7 @@ console.log('\n2. EN + basic GA4 dropped together');
   const html = await page.evaluate(() => buildExecutiveSummaryHTML());
   check('summary HTML has GA4 sections', ['GA4 Tracking Coverage', 'Ladder Entry Pages (GA4)', 'Opt-Ins Taken (GA4)', 'First Step Shown (GA4)', 'Ladder Position Averages (GA4)', '>Coverage<', 'GA4 Submits'].every(s => html.includes(s)));
   const txt = await page.evaluate(() => buildExecutiveSummaryPlaintext());
-  check('summary text has GA4 blocks', txt.includes('GA4 TRACKING COVERAGE') && txt.includes('LADDER ENTRY PAGES (GA4)') && txt.includes('GA4: ga4-basic.csv'), txt.slice(0, 400));
+  check('summary text has GA4 blocks', txt.includes('GA4 TRACKING COVERAGE') && txt.includes('LADDER ENTRY PAGES (GA4)') && txt.includes('GA4: Ladder Submits'), txt.slice(0, 400));
 
   await addGA4(page, ['ga4-views.csv']);
   const f2 = await flags(page);
@@ -185,6 +186,7 @@ const edge = [
   ['ga4-notime.csv',    (t, w) => check('no time cols → hasTime false + warning', !t.hasTime && t.months.length === 0 && t.submitTotal === expected.totalGA4 && w.some(x => /no usable time/.test(x)), JSON.stringify({ t, w }))],
   ['ga4-stepdim.csv',   (t, w, f) => check('step as dimension ignored + warning, total steps still a metric', t.stepAsDim.length === 1 && t.stepAsDim[0] === 'Optin Step Number' && w.some(x => /were ignored/.test(x)) && t.submitTotal === expected.totalGA4 && f.hasGA4StepMetric, JSON.stringify({ t, w }))],
   ['ga4-unfiltered.csv',(t) => check('extra events ignored + reported', t.ignoredEvents.form_start === 6 && t.ignoredEvents.scroll === 6 && t.submitTotal === expected.totalGA4, JSON.stringify(t))],
+  ['ga4-real-shape.csv',(t, w) => check('real export shape: Nth month dated from header range, Grand total row, all-zero metric dropped', t.hasTime && t.timeSource === 'Nth month' && JSON.stringify(t.months) === JSON.stringify(['2025-01', '2025-02']) && t.skipped.totals === 1 && t.skipped.shortRow === 0 && t.submitTotal === expected.realShapeSubmits && t.zeroMetrics.includes('Optin Submission Count') && t.rangeText === '2025-01-01 → 2025-02-28' && w.some(x => /0 in every row/.test(x)), JSON.stringify({ t, w }))],
   ['ga4-combined.csv',  (t, w, f) => check('combined submit+page_view tab', t.submitTotal === expected.totalGA4 && t.viewTotal === totalViews && f.hasGA4Views && f.hasGA4Events && !f.hasGA4Parent, JSON.stringify({ t, f }))],
 ];
 for (const [file, assert] of edge) {
@@ -195,6 +197,9 @@ for (const [file, assert] of edge) {
   if (file === 'ga4-notime.csv') {
     const badge = await page.textContent('#ga4-scope-badge'), h = await headers(page), k = await kpi(page, 'GA4 Coverage');
     check('notime: badge entire export, no coverage headers, KPI says entire export', badge === 'Entire export range' && !h.includes('Coverage') && k.sub.includes('entire export'), JSON.stringify({ badge, h, k }));
+  }
+  if (file === 'ga4-real-shape.csv') {
+    check('real shape: only two step pills (zero metric hidden)', (await page.$$('#ga4-step-stats .ga4-stat-pill')).length === 2);
   }
   if (file === 'ga4-tsv-meta.tsv') {
     const labels = await page.$$eval('#hbar-ga4-parent .hbar-label', els => els.map(e => e.textContent));

@@ -521,6 +521,7 @@ let   ga4Meta         = null;      // import report data built by recomputeGA4St
 const ga4AutoViews    = {};        // 'YYYY-MM' → page_view count from imports; manual ga4Views overrides per month
 let   pendingGA4Files = [];        // GA4 files dropped on the upload screen before the EN file was parsed
 let   ga4AutoCorrection = false;   // true once measured ad-blocker correction was switched on for this session
+let   ga4FileSeq      = 0;         // ids for imported GA4 files (names are not unique: GA4 downloads are all download.csv)
 
 const F = {
   hasPG:          false,
@@ -944,7 +945,9 @@ const GA4_COLUMNS = [
   { key:'yearMonth',     aliases:['year month'] },
   { key:'month',         aliases:['month'] },
   { key:'year',          aliases:['year'] },
-  { key:'ignored',       aliases:['page path','page path and screen class','page location','page path query string','page path plus query string','page title','hostname','segment','week','day','day of week','hour','nth day','nth week','nth month','nth year'], re:/^(page |nth |segment)/ },
+  { key:'nthMonth',      aliases:['nth month'] },   // 0000, 0001… since the export's range start (needs the # YYYYMMDD-YYYYMMDD header line)
+  { key:'nthDay',        aliases:['nth day'] },
+  { key:'ignored',       aliases:['page path','page path and screen class','page location','page path query string','page path plus query string','page title','hostname','segment','week','day','day of week','hour','nth week','nth year','nth hour','nth minute'], re:/^(page |nth |segment)/ },
 ];
 const GA4_DIM_KEYS  = ['event','parentType','parentName','parentId','optinLabel','optinId','firstStepName','firstStepId'];
 const GA4_SUM_KEYS  = ['step','totalSteps','submission'];
@@ -954,6 +957,7 @@ const GA4_KEY_LABEL = {
   optinLabel:'opt-in label', optinId:'opt-in ID', firstStepName:'first step name', firstStepId:'first step ID',
   step:'step number (sum)', totalSteps:'total steps (sum)', submission:'submission count (sum)',
   date:'date', dateHour:'date + hour', yearMonth:'year month', month:'month', year:'year',
+  nthMonth:'nth month (from export range)', nthDay:'nth day (from export range)',
 };
 const MONTH_ABBR = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
 
@@ -1021,11 +1025,21 @@ function mapGA4Header(cells) {
 }
 
 // Resolve a row's month from whichever time columns the export carries
-function ga4TimeFromRow(cells, cols) {
+function ga4TimeFromRow(cells, cols, ctx = {}) {
   const get = k => cols[k] != null ? String(cells[cols[k]] ?? '').trim() : '';
   let y = null, m = null, source = null, mm;
   const d = get('date') || get('dateHour');
   if (d && (mm = d.match(/^(\d{4})(\d{2})(\d{2})/))) { y = mm[1]; m = mm[2]; source = 'Date'; }
+  if (!y && cols.nthMonth != null && /^\d+$/.test(get('nthMonth'))) {
+    if (!ctx.rangeStart) return { month: null, quarter: null, source: 'nthNoRange' };
+    const dt = new Date(ctx.rangeStart.getFullYear(), ctx.rangeStart.getMonth() + parseInt(get('nthMonth'), 10), 1);
+    y = String(dt.getFullYear()); m = String(dt.getMonth() + 1); source = 'Nth month';
+  }
+  if (!y && cols.nthDay != null && /^\d+$/.test(get('nthDay'))) {
+    if (!ctx.rangeStart) return { month: null, quarter: null, source: 'nthNoRange' };
+    const dt = new Date(ctx.rangeStart.getFullYear(), ctx.rangeStart.getMonth(), ctx.rangeStart.getDate() + parseInt(get('nthDay'), 10));
+    y = String(dt.getFullYear()); m = String(dt.getMonth() + 1); source = 'Nth day';
+  }
   if (!y && (mm = get('yearMonth').match(/^(\d{4})(\d{2})$/))) { y = mm[1]; m = mm[2]; source = 'Year month'; }
   if (!y) {
     const mo = get('month'), yr = get('year');
@@ -1055,6 +1069,16 @@ function parseGA4Text(text, fileName, encoding) {
     if (t) metaLines.push(t);
     i++;
   }
+  // GA4 writes the report's date range into the header as YYYYMMDD-YYYYMMDD
+  let rangeStart = null, rangeEnd = null, rangeText = null;
+  for (const ml of metaLines) {
+    const rm = ml.match(/(\d{4})(\d{2})(\d{2})-(\d{4})(\d{2})(\d{2})/);
+    if (rm) { rangeStart = new Date(+rm[1], +rm[2] - 1, +rm[3]); rangeEnd = new Date(+rm[4], +rm[5] - 1, +rm[6]); rangeText = `${rm[1]}-${rm[2]}-${rm[3]} → ${rm[4]}-${rm[5]}-${rm[6]}`; break; }
+  }
+  // GA4 downloads are all called download.csv; the header carries "<exploration>-<tab>" after the property line
+  const nonRange = metaLines.filter(l => !/\d{8}-\d{8}/.test(l));
+  const label = nonRange.length >= 2 ? nonRange[1] : (nonRange[0] || fileName);
+  const fileId = ++ga4FileSeq;
   const rest = lines.slice(i).join('\n');
   if (!rest.trim()) return { error: `${fileName}: no data rows found` };
   const first = lines[i];
@@ -1080,14 +1104,16 @@ function parseGA4Text(text, fileName, encoding) {
 
   const stats = { skipped: { totals: 0, nonNumeric: 0, shortRow: 0, noTime: 0 }, notSet: {}, ignoredEvents: {} };
   const rows = [];
-  let timeSource = null, monthOnly = false;
+  let timeSource = null, monthOnly = false, nthNoRange = false;
+  const isTotalLabel = v => /^(grand )?totals?$/i.test(String(v ?? '').trim());
 
   for (let r = headerIdx + 1; r < data.length; r++) {
     const c = data[r];
+    // GA4 appends the "Grand total" label as an extra trailing cell after the metrics
+    if (c.length === header.length + 1 && isTotalLabel(c[c.length - 1])) { stats.skipped.totals++; continue; }
     if (c.length !== header.length) { stats.skipped.shortRow++; continue; }
-    const firstCell = String(c[0] ?? '').trim();
     const allDimsBlank = dimIdx.length > 0 && dimIdx.every(idx => String(c[idx] ?? '').trim() === '');
-    if (/^(totals?|grand total)$/i.test(firstCell) || allDimsBlank) { stats.skipped.totals++; continue; }
+    if (isTotalLabel(c[0]) || allDimsBlank) { stats.skipped.totals++; continue; }
 
     const count = cols.count != null ? parseGA4Number(c[cols.count]) : NaN;
     const views = cols.views != null ? parseGA4Number(c[cols.views]) : NaN;
@@ -1106,14 +1132,15 @@ function parseGA4Text(text, fileName, encoding) {
       else { const k = event || '(not set)'; stats.ignoredEvents[k] = (stats.ignoredEvents[k] || 0) + 1; continue; }
     } else kind = viewsOnly ? 'view' : 'submit';
 
-    const t = ga4TimeFromRow(c, cols);
+    const t = ga4TimeFromRow(c, cols, { rangeStart });
     if (t.source === 'monthOnly') monthOnly = true;
+    if (t.source === 'nthNoRange') nthNoRange = true;
     if (t.month && !timeSource) timeSource = t.source;
     const sum = k => { if (cols[k] == null) return null; const n = parseGA4Number(c[cols[k]]); return Number.isNaN(n) ? null : n; };
     const n = kind === 'view' ? (Number.isNaN(views) ? count : views) : (Number.isNaN(count) ? views : count);
 
     const row = {
-      kind, event, month: t.month, quarter: t.quarter, _file: fileName,
+      kind, event, month: t.month, quarter: t.quarter, _fid: fileId,
       parentType: dim('parentType'), parentName: dim('parentName'), parentId: dim('parentId'),
       optinLabel: dim('optinLabel'), optinId: dim('optinId'),
       firstStepName: dim('firstStepName'), firstStepId: dim('firstStepId'),
@@ -1124,14 +1151,24 @@ function parseGA4Text(text, fileName, encoding) {
     rows.push(row);
   }
 
+  // A sum metric that is 0 on every row carries no information (usually a GTM variable that never resolves)
+  const zeroMetrics = [];
+  GA4_SUM_KEYS.forEach(k => {
+    if (cols[k] == null) return;
+    const field = { step: 'stepSum', totalSteps: 'totalStepsSum', submission: 'submissionSum' }[k];
+    const vals = rows.filter(r => r.kind === 'submit' && r[field] != null);
+    if (vals.length && vals.every(r => r[field] === 0)) { rows.forEach(r => { r[field] = null; }); zeroMetrics.push(header[cols[k]]); }
+  });
+
   const withMonth = rows.filter(r => r.month).length;
   const hasTime = rows.length > 0 && withMonth / rows.length >= 0.9;
   let kept = rows;
   if (hasTime) { kept = rows.filter(r => r.month); stats.skipped.noTime = rows.length - kept.length; }
   else kept.forEach(r => { r.month = null; r.quarter = null; });
 
-  const file = { name: fileName, rows: kept.length, delimiter: delimiter === '\t' ? 'TSV' : 'CSV', encoding, metaLines, header,
-                 unmapped: map.unmapped, ignoredCols: map.ignored, stepAsDim, monthOnly,
+  const file = { id: fileId, name: fileName, label, rows: kept.length, delimiter: delimiter === '\t' ? 'TSV' : 'CSV', encoding, metaLines, header,
+                 unmapped: map.unmapped, ignoredCols: map.ignored, stepAsDim, monthOnly, nthNoRange, zeroMetrics,
+                 rangeText, rangeStart, rangeEnd,
                  assumedSubmits: !hasEventCol && !viewsOnly, ...stats };
   const table = { signature: Object.keys(cols).sort().join('|'), cols, hasTime, timeSource: hasTime ? timeSource : null, hasEventCol,
                   files: [file], rows: kept, months: new Set(), submitTotal: 0, viewTotal: 0 };
@@ -1158,7 +1195,7 @@ async function importGA4Files(files) {
   tables.forEach(t => {
     const existing = ga4Tables.find(x => x.signature === t.signature);
     if (!existing) { ga4Tables.push(t); return; }
-    if (existing.files.some(f => f.name === t.files[0].name)) { warnings.push(`${t.files[0].name} was already imported — the second copy was skipped`); return; }
+    if (existing.files.some(f => f.name === t.files[0].name && f.rows === t.files[0].rows)) { warnings.push(`${t.files[0].name} was already imported — the second copy was skipped`); return; }
     const overlap = [...t.months].filter(m => existing.months.has(m)).sort();
     if (overlap.length) warnings.push(`${t.files[0].name} overlaps ${existing.files.map(f => f.name).join(', ')} in ${overlap.length} month${overlap.length > 1 ? 's' : ''} (from ${formatMonth(overlap[0])}) — totals may double count`);
     existing.files.push(...t.files);
@@ -1179,10 +1216,12 @@ async function importGA4Files(files) {
   }
 }
 
-function removeGA4File(name) {
+function removeGA4File(id) {
+  id = Number(id);
+  const name = ga4Tables.flatMap(t => t.files).find(f => f.id === id)?.name || 'file';
   ga4Tables.forEach(t => {
-    t.files = t.files.filter(f => f.name !== name);
-    t.rows  = t.rows.filter(r => r._file !== name);
+    t.files = t.files.filter(f => f.id !== id);
+    t.rows  = t.rows.filter(r => r._fid !== id);
     refreshGA4Table(t);
   });
   ga4Tables = ga4Tables.filter(t => t.files.length && t.rows.length);
@@ -1334,6 +1373,8 @@ function buildGA4Meta(warnings) {
   ga4Tables.forEach(t => t.files.forEach(f => {
     if (f.stepAsDim.length) w.push(`${f.name}: ${f.stepAsDim.join(', ')} appear as dimensions and were ignored — this dashboard reads step data as GA4 sum metrics only.`);
     if (f.monthOnly)        w.push(`${f.name}: "Month" is a two-digit value with no "Year" column, so rows could not be dated. Add Year to the exploration.`);
+    if (f.nthNoRange)       w.push(`${f.name}: "Nth month" / "Nth day" values can only be dated from the YYYYMMDD-YYYYMMDD range line GA4 writes into the file header, and this file has none. Use Year + Month instead.`);
+    f.zeroMetrics.forEach(col => w.push(`${f.name}: "${col}" is 0 in every row, so it was ignored. For submission_count this means the GTM Data Layer Variable behind it never resolves at tag time — point it at the event parameter "submission_count" (ENgrid pushes ENGRID_OPTIN_LADDER_SUBMISSION_COUNT only after the event).`));
     if (f.assumedSubmits)   w.push(`${f.name}: no "Event name" column, so every row was treated as a ladder submit.`);
   }));
   ga4Tables.filter(t => !t.hasTime).forEach(t => w.push(`${t.files.map(f => f.name).join(', ')}: no usable time columns. Its sections show the entire export range and it cannot feed per-period coverage. Add Year + Month (or Date) to the exploration.`));
@@ -1358,7 +1399,7 @@ function renderGA4ImportReport() {
     const f0 = t.files[0];
     html += `<div class="ga4-report-table">`;
     html += `<div class="ga4-report-file">${t.files.map(f =>
-      `<span class="ga4-file-chip" title="${esc(f.metaLines.join(' · '))}">📄 ${esc(f.name)} <span style="color:var(--mid)">· ${fmt(f.rows)} rows · ${f.delimiter} · ${f.encoding}</span><button class="ga4-remove" data-name="${esc(f.name)}" title="Remove this file">✕</button></span>`
+      `<span class="ga4-file-chip" title="${esc(f.metaLines.join(' · '))}">📄 ${esc(f.label)}${f.label !== f.name ? ` <span style="color:var(--mid)">(${esc(f.name)})</span>` : ''} <span style="color:var(--mid)">· ${fmt(f.rows)} rows · ${f.delimiter} · ${f.encoding}</span><button class="ga4-remove" data-id="${f.id}" data-name="${esc(f.name)}" title="Remove this file">✕</button></span>`
     ).join('')}</div>`;
     const chips = Object.entries(t.cols).sort((a, b) => a[1] - b[1]).map(([k, idx]) =>
       `<span class="ga4-col-chip" title="${esc(f0.header[idx])}">${esc(f0.header[idx])} → ${GA4_KEY_LABEL[k] || k}</span>`);
@@ -1366,7 +1407,7 @@ function renderGA4ImportReport() {
     f0.ignoredCols.forEach(h => chips.push(`<span class="ga4-col-chip ignored" title="Known column, not needed">${esc(h)} · ignored</span>`));
     html += `<div class="ga4-col-chips">${chips.join('')}</div>`;
     html += `<div class="ga4-report-line">Ladder submits: <strong>${fmt(t.submitTotal)}</strong> (${fmt(submitRows)} rows)${t.viewTotal ? ` · page_views: <strong>${fmt(t.viewTotal)}</strong> (${fmt(viewRows)} rows)` : ''} · skipped: ${sk.totals} totals, ${sk.nonNumeric} non-numeric, ${sk.shortRow} short${sk.noTime ? `, ${sk.noTime} undated` : ''}</div>`;
-    html += `<div class="ga4-report-line">Time: ${t.hasTime ? `${esc(ga4RangeLabel(t))} · ${t.months.size} month${t.months.size > 1 ? 's' : ''} (${esc(t.timeSource)})` : 'no usable time columns — Period filter not applied to this table'}</div>`;
+    html += `<div class="ga4-report-line">Time: ${t.hasTime ? `${esc(ga4RangeLabel(t))} · ${t.months.size} month${t.months.size > 1 ? 's' : ''} (${esc(t.timeSource)})` : 'no usable time columns — Period filter not applied to this table'}${f0.rangeText ? ` · header date range ${esc(f0.rangeText)}` : ''}</div>`;
     const ig = Object.entries(ignoredEv).sort((a, b) => b[1] - a[1]);
     if (ig.length) html += `<div class="ga4-report-line">Ignored events: ${ig.slice(0, 6).map(([k, v]) => `${esc(k)} (${fmt(v)} rows)`).join(' · ')}</div>`;
     const ns = Object.entries(notSet).sort((a, b) => b[1] - a[1]);
@@ -1376,7 +1417,7 @@ function renderGA4ImportReport() {
   if (ga4Meta?.enMissing?.length) html += `<div class="ga4-report-line">EN months outside the GA4 export range (no coverage computed): ${ga4Meta.enMissing.map(formatMonth).join(', ')}</div>`;
   (ga4Meta?.warnings || []).forEach(wm => { html += `<div class="ga4-report-warn">⚠ ${esc(wm)}</div>`; });
   el.innerHTML = html;
-  el.querySelectorAll('.ga4-remove').forEach(b => { b.onclick = ev => { ev.stopPropagation(); removeGA4File(b.dataset.name); }; });
+  el.querySelectorAll('.ga4-remove').forEach(b => { b.onclick = ev => { ev.stopPropagation(); removeGA4File(b.dataset.id); }; });
 }
 
 // ── GA4 sections (fill the #ga4-sections placeholder; never rebuild the whole shell) ──
@@ -1537,7 +1578,7 @@ function ga4SummaryData(pk) {
     impliedUplift: cov ? impliedUpliftLabel(pk) : null,
     pages: pageList, types, labels, firstSteps,
     stepStats: F.hasGA4StepMetric ? ga4StepAverages(ga4RowsFor(ga4StepTable(), pk)) : null,
-    files: [...new Set(ga4Tables.flatMap(t => t.files.map(f => f.name)))],
+    files: [...new Set(ga4Tables.flatMap(t => t.files.map(f => f.label)))],
     range: T && T.hasTime ? ga4RangeLabel(T) : null,
   };
 }
@@ -2707,7 +2748,7 @@ function buildExecutiveSummaryPlaintext() {
     `Prepared by 4Site Studios · 4sitestudios.com`,
     `Date Range: ${dateRangeStr}  ·  View: ${gran}`,
     drillDowns.length ? `Filters: ${drillDowns.join('  ·  ')}` : '',
-    (F.hasGA4Events || F.hasGA4Views) ? `GA4: ${[...new Set(ga4Tables.flatMap(t => t.files.map(f => f.name)))].join(', ')}` : undefined,
+    (F.hasGA4Events || F.hasGA4Views) ? `GA4: ${[...new Set(ga4Tables.flatMap(t => t.files.map(f => f.label)))].join(', ')}` : undefined,
     D,
     '',
     'PARTICIPATION',
@@ -2739,12 +2780,12 @@ function buildExecutiveSummaryPlaintext() {
     if (g.pages.length) {
       const tot = g.pages.reduce((a,p)=>a+p.count,0);
       lines.push('', 'LADDER ENTRY PAGES (GA4)');
-      g.pages.slice(0,5).forEach(p => lines.push(`  ${p.name.slice(0,22).padEnd(22)}${fmt(p.count).padStart(7)}  (${tot>0?((p.count/tot)*100).toFixed(1):0}%)  ${p.type}`));
+      g.pages.slice(0,5).forEach(p => lines.push(`  ${p.name.slice(0,34).padEnd(34)}${fmt(p.count).padStart(7)}  (${tot>0?((p.count/tot)*100).toFixed(1):0}%)  ${p.type}`));
     }
     if (g.labels.length) {
       const tot = g.labels.reduce((a,[,v])=>a+v,0);
       lines.push('', 'OPT-INS TAKEN (GA4)');
-      g.labels.slice(0,5).forEach(([l,c]) => lines.push(`  ${String(l).slice(0,22).padEnd(22)}${fmt(c).padStart(7)}  (${tot>0?((c/tot)*100).toFixed(1):0}%)`));
+      g.labels.slice(0,5).forEach(([l,c]) => lines.push(`  ${String(l).slice(0,34).padEnd(34)}${fmt(c).padStart(7)}  (${tot>0?((c/tot)*100).toFixed(1):0}%)`));
     }
   }
 

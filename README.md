@@ -74,9 +74,9 @@ ENgrid's `OptInLadder` component pushes every ladder step submission into the GT
 | `Optin Label` / `Optin ID` | ENgrid `opt_in_label` / `opt_in_id` | Opt-Ins Taken |
 | `Optin First Step Name` / `ID` | ENgrid `first_step_*` (only set on the first step of a session) | First Step Shown, GA4 ladder starters, GA4 depth ratio |
 | `Optin Step Number`, `Optin Total Steps`, `Optin Submission Count` | ENgrid `opt_in_step`, `opt_in_total_steps`, `submission_count` as GA4 **sum** metrics | Ladder Position Averages (each divided by tracked submits) |
-| `Year` + `Month`, `Date`, `Year month`, or a `Month` written as `202501` / `Jan 2025` | GA4 time dimensions | Aligns GA4 rows to the dashboard's months and quarters |
+| `Year` + `Month`, `Date`, `Year month`, a `Month` written as `202501` / `Jan 2025`, or `Nth month` / `Nth day` | GA4 time dimensions | Aligns GA4 rows to the dashboard's months and quarters. `Nth` values are dated from the `YYYYMMDD-YYYYMMDD` range line GA4 writes into the file header |
 
-Leading `#` metadata lines, a `Totals` row, `(not set)` / `(other)` values, quoted numbers with thousands separators, tab or comma delimiters, and UTF-8 or UTF-16 encodings are all handled. Column headers are matched by GA4 display name (case and punctuation insensitive).
+Leading `#` metadata lines, the `Grand total` row (GA4 puts its label in an extra trailing cell), `(not set)` / `(other)` values, quoted numbers with thousands separators, tab or comma delimiters, and UTF-8 or UTF-16 encodings are all handled. Column headers are matched by GA4 display name (case and punctuation insensitive). GA4 downloads are all named `download.csv`, so files are labelled by the exploration and tab name from the header lines.
 
 **What it unlocks**
 
@@ -92,6 +92,8 @@ Leading `#` metadata lines, a `Totals` row, `(not set)` / `(other)` values, quot
 - First Step values are only recorded on the first step of a session. Rows that carry one are ladder starters, so `GA4 depth ratio = tracked submits ÷ starters`, comparable to the EN depth ratio. Followup-step rows show as `(not set)` for First Step; that is expected.
 - Start Rate (in the summary) = GA4 starters ÷ GA4 ladder views. Both sides are undercounted by the same blockers, so the ratio needs no correction.
 - Custom definitions only collect data from the day they were registered.
+- A sum metric that is 0 in every row is dropped and flagged in the import report. For `Optin Submission Count` this means the GTM Data Layer Variable behind `submission_count` reads a key ENgrid pushes only after the event (`ENGRID_OPTIN_LADDER_SUBMISSION_COUNT`); point it at the event parameter `submission_count` like the other opt-in variables.
+- `(not set)` parent pages are submits where the parent frame never posted its page info. ENgrid only posts to an iframe it injected itself, so thank-you pages with the ladder iframe placed in the content, or parents not running ENgrid's `OptInLadder`, show up here.
 
 **Several files**
 
@@ -226,15 +228,15 @@ The GTM tag *GA4 Event - Opt-In Ladder Submit* sends these parameters with the `
 | Ladder Steps | `Year`, `Month`, `Event name`, `Optin Label`, `Optin First Step Name` | `Event count`, `Optin Step Number`, `Optin Total Steps`, `Optin Submission Count` | `Event name` exactly matches `ENGRID_OPTIN_LADDER_SUBMIT` |
 | Ladder Views | `Year`, `Month`, `Event name` | `Event count` | `Event name` exactly matches `page_view` **and** `Page path and screen class` contains `/page/<ladder page ID>/data/1` **and** `Page location` does not contain `engrid_optin_ladder_followup` |
 
-Set Show rows to 500 and Nested rows to No on every tab. Keep `Event name` even on filtered tabs: it is how the dashboard tells submits from views. Use `Year` + `Month` rather than `Date` to keep row counts low; `Month` alone is a two-digit value the dashboard cannot date. Do not move dimensions into Columns: a pivoted table exports in a shape the importer does not read.
+Set Nested rows to No on every tab; Show rows only affects the on-screen table, the export contains every row. Keep `Event name` even on filtered tabs: it is how the dashboard tells submits from views. Use `Month` (not `Nth month`) with `Year`; `Nth month` also imports because the header carries the date range, but `Month` reads better. `Month` alone is a two-digit value the dashboard cannot date; `Date` works but multiplies rows. Do not move dimensions into Columns: a pivoted table exports in a shape the importer does not read.
 
 Optional fourth tab when labels or page names get renamed over time: `Year`, `Month`, `Event name`, `Optin ID`, `Optin First Step ID` (or `Optin Parent Page ID`). The dashboard shows names when present and falls back to IDs.
 
 **4. About the views tab.** It counts first-step ladder impressions only, which is stricter than counting every ladder page load, so it will not match historical hand-entered figures exactly. Drop the `Page location` filter if you want every ladder page load instead. The ladder page ID is the numeric ID in the `OptInLadder.iframeUrl` option of the client's ENgrid theme (NWF: 88894).
 
-**5. If a tab hits the 500-row limit or shows `(other)` rows**, shorten the date range and export several shards with identical columns; the dashboard concatenates them and flags overlapping months. The Ladder Pages tab is the one that grows with the number of parent pages.
+**5. If a tab shows `(other)` rows or looks truncated**, shorten the date range and export several shards with identical columns; the dashboard concatenates them and flags overlapping months. The Ladder Pages tab is the one that grows with the number of parent pages.
 
-**6. Export.** On each tab: Export (top right) → Download CSV (TSV also works); each tab downloads separately and takes the tab name as its filename. Drop all files together with the EN CSV, or add them later via *Add GA4 Export*. Check the import report in the GA4 Data panel: every column should show a mapping, the month range should match the EN export, and there should be no warnings.
+**6. Export.** On each tab: Export (top right) → Download CSV (TSV also works); each tab downloads separately as `download.csv`, and the dashboard reads the tab name from inside the file. Drop all files together with the EN CSV, or add them later via *Add GA4 Export*. Check the import report in the GA4 Data panel: every column should show a mapping, the month range should match the EN export, and there should be no warnings.
 
 **Caveats:** GA4 only sees traffic that loads GTM and consents to analytics, which is exactly what the Coverage figure measures. Google Signals thresholding can hide low-count rows in explorations. Adding `opt_in_step` as an event-scoped custom dimension would enable a per-step funnel, but this dashboard reads step data as sum metrics only.
 

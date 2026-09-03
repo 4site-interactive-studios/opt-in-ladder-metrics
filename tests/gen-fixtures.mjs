@@ -171,6 +171,31 @@ emit('ga4-unfiltered.csv', [...ga4, ...MONTHS.flatMap(m => [{ month: m, page: nu
 emit('ga4-views.csv', MONTHS.map(m => ({ month: m, page: null, step: 0, count: viewsByMonth[m], event: 'page_view' })), ['year', 'monthMM', 'event'], ['count']);
 // Combined coverage tab: both event names in one file
 emit('ga4-combined.csv', [...ga4, ...MONTHS.map(m => ({ month: m, page: null, step: 0, count: viewsByMonth[m], event: 'page_view' }))], ['year', 'monthMM', 'event'], ['count']);
+// Real-world shape (seen in an NWF export): property + tab name + YYYYMMDD-YYYYMMDD header lines, "Nth month"
+// instead of Month, a Grand total row whose label sits in an extra trailing cell, and a sum metric that is 0 everywhere.
+{
+  const jf = ga4.filter(r => r.month <= '2025-02');
+  const agg = aggregate(jf, ['year', 'event', 'label', 'fsName']);
+  const nth = r => String(['2025-01', '2025-02'].indexOf(r.month)).padStart(4, '0');
+  const byNth = new Map();
+  jf.forEach(r => { const k = [nth(r), r.step, 'x'].join('|'); });
+  const rows = aggregate(jf.map(r => ({ ...r, _nth: nth(r) })), ['year', 'event', 'label', 'fsName']);
+  // aggregate() has no Nth dimension, so build rows by (nth, label, first step) directly
+  const map = new Map();
+  jf.forEach(r => {
+    const dims = [r.month.slice(0, 4), nth(r), EVENT, LADDER[r.step - 1].label, r.step === 1 ? LADDER[0].label : '(not set)'];
+    const key = dims.join('|');
+    const e = map.get(key) || { dims, count: 0, stepSum: 0, totalSum: 0 };
+    e.count += r.count; e.stepSum += r.step * r.count; e.totalSum += LADDER.length * r.count;
+    map.set(key, e);
+  });
+  const body = [...map.values()].map(e => [...e.dims, e.count, e.stepSum, e.totalSum, 0]);
+  const tot = [...map.values()].reduce((a, e) => ({ count: a.count + e.count, stepSum: a.stepSum + e.stepSum, totalSum: a.totalSum + e.totalSum }), { count: 0, stepSum: 0, totalSum: 0 });
+  const header = ['Year', 'Nth month', 'Event name', 'Optin Label', 'Optin First Step Name', 'Event count', 'Optin Step Number', 'Optin Total Steps', 'Optin Submission Count'];
+  const meta = ['# ----------------------------------------', '# GA4 - Test Property - GA4', '# Opt-In Ladder Export-Ladder Steps', '# 20250101-20250228', '# ----------------------------------------', ''];
+  const grand = ['', '', '', '', '', tot.count, tot.stepSum, tot.totalSum, 0, 'Grand total'];
+  writeFileSync(join(out, 'ga4-real-shape.csv'), meta.join('\n') + '\n' + toCSV(header, [grand, ...body]) + '\n');
+}
 // Bad file: not a GA4 export at all
 writeFileSync(join(out, 'not-ga4.csv'), 'foo,bar\n1,2\n');
 
@@ -189,6 +214,7 @@ const expected = {
   adjViewsJan: Math.round(viewsByMonth['2025-01'] / (ga4SubmitsByMonth['2025-01'] / enRowsByMonth['2025-01'])),
   pages: PAGES.map(p => p.name), ladder: LADDER.map(l => l.label), ladderLength: LADDER.length,
   tsvExtraSubmits: 12,
+  realShapeSubmits: ga4SubmitsByMonth['2025-01'] + ga4SubmitsByMonth['2025-02'],
 };
 writeFileSync(join(out, 'expected.json'), JSON.stringify(expected, null, 2));
 console.log(`fixtures written to ${out}: EN rows ${enRows.length}, GA4 submits ${totalGA4} / EN ${totalEN} = ${expected.coverageAll}`);
