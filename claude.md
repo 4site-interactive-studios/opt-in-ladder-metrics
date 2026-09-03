@@ -199,6 +199,9 @@ Rules that must hold:
 | `buildExecutiveSummaryHTML()` | Rich-text summary; GA4 sections gated on `F.hasGA4*`, Performance by Period gains GA4 Submits / Coverage / views columns |
 | `buildExecutiveSummaryPlaintext()` | Plain-text fallback with the same GA4 blocks |
 | `summaryTable()` / `sectionHeading()` / `sectionSpacer()` | Inline-styled building blocks that survive paste into a WYSIWYG |
+| `summaryCore()` / `summaryDateRange()` / `summaryDrillDowns()` / `periodTableData()` | Shared inputs for both summaries: participation numbers, period labels (`dateRangeStr` matches the filter text, `longLabel` is client-facing), active filters, and the Performance by Period headers/rows |
+| `shortSummaryParts()` / `buildShortSummaryHTML()` / `buildShortSummaryPlaintext()` / `textTable()` | Client-facing "Copy Short Summary": header, Participation, Engagement Quality, Entry Page Type (all rows), Top Ladder Entry Pages, Opt-Ins Taken, First Step Shown (rows ≥ `SHORT_MIN_SHARE`, `(not set)` pages hidden, `% of Visitors` when views exist, footnotes), Performance by Period. Shares stay computed on full totals |
+| `copyExecutiveSummary(mode)` | `'full'` or `'short'`; picks builders, button and toast |
 
 ### Shell
 | Function | Purpose |

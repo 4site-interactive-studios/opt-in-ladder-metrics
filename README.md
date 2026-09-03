@@ -160,6 +160,15 @@ Table of campaigns sorted by opt-in volume with participants, total opt-ins, and
 
 ---
 
+## Copy Summary Buttons
+
+Two clipboard exports sit in the top bar. Both copy rich text (paste into Google Docs, Gmail, Slack) with a plain-text fallback.
+
+- **Copy Full Summary** — the internal executive summary: every section the dashboard shows, including Traffic Source Mix, Device Breakdown, GA4 Tracking Coverage, Depth Distribution and the file/filter context lines.
+- **Copy Short Summary** — the client-ready version. Header (`Date Range`, `View`, plus `Filters` only when a Source, Campaign or Device filter is active), Participation, Engagement Quality, then, when GA4 data is loaded, Entry Page Type (all rows), Top Ladder Entry Pages, Opt-Ins Taken and First Step Shown (rows with at least 10% share; `(not set)` pages hidden; `% of Visitors` when ladder views are loaded), and Performance by Period. Shares are still computed on the full totals, and a footnote under each trimmed table says how many rows are shown and what was left out. The threshold is the `SHORT_MIN_SHARE` constant in `index.html`.
+
+---
+
 ## Filters
 
 | Filter | Always shown | Condition |

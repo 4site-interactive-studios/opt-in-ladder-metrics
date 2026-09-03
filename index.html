@@ -67,25 +67,26 @@ body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(
 /* ── Top bar ── */
 #dashboard { display: none; }
 .top-bar {
-  background: var(--forest); padding: 0 32px; height: 60px;
-  display: flex; align-items: center; justify-content: space-between;
+  background: var(--forest); padding: 8px 32px; min-height: 60px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; row-gap: 6px; column-gap: 16px;
   position: sticky; top: 0; z-index: 100;
 }
-.top-bar-title { display: flex; align-items: center; gap: 12px; }
+.top-bar-title { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
 .top-bar-title .logo { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 300; color: var(--cream); font-style: italic; }
 .top-bar-title .logo span { color: var(--gold); }
 .top-bar-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--fern); letter-spacing: 0.05em; }
+.top-bar .top-bar-meta { white-space: nowrap; }
 .btn-reset {
   font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
   background: none; border: 1px solid rgba(111,163,127,0.4); color: var(--fern);
   padding: 6px 16px; border-radius: 2px; cursor: pointer; transition: all 0.2s;
 }
 .btn-reset:hover { border-color: var(--gold); color: var(--gold); }
-.top-bar-actions { display: flex; align-items: center; gap: 8px; }
+.top-bar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 .btn-export {
-  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
   background: none; border: 1px solid rgba(111,163,127,0.4); color: var(--fern);
-  padding: 6px 14px; border-radius: 2px; cursor: pointer; transition: all 0.2s;
+  padding: 7px 10px; border-radius: 2px; cursor: pointer; transition: all 0.2s;
   display: flex; align-items: center; gap: 6px;
 }
 .btn-export:hover { border-color: var(--gold); color: var(--gold); }
@@ -444,8 +445,11 @@ th.ga4-col { color: var(--bark) !important; }
         <span class="btn-icon">📈</span> Add GA4 Export
       </button>
       <input type="file" id="ga4-file-input" accept=".csv,.tsv,.txt" multiple style="display:none">
-      <button class="btn-export" id="btn-copy-summary" onclick="copyExecutiveSummary()" title="Copy executive summary to clipboard">
-        <span class="btn-icon">📋</span> Copy Summary
+      <button class="btn-export" id="btn-copy-short" onclick="copyExecutiveSummary('short')" title="Copy a client-ready short summary to clipboard">
+        <span class="btn-icon">📋</span> Copy Short Summary
+      </button>
+      <button class="btn-export" id="btn-copy-summary" onclick="copyExecutiveSummary('full')" title="Copy the full executive summary to clipboard">
+        <span class="btn-icon">📋</span> Copy Full Summary
       </button>
       <button class="btn-export" id="btn-copy-screenshot" onclick="copyScreenshot()" title="Copy screenshot of dashboard to clipboard">
         <span class="btn-icon">📸</span> Copy Screenshot
@@ -2464,7 +2468,8 @@ function sectionSpacer() {
   return `<p style="margin:0;font-size:14px;line-height:1;">&nbsp;</p>`;
 }
 
-function buildExecutiveSummaryHTML() {
+// ── Shared summary inputs (full and short summaries, HTML and plaintext) ──
+function summaryCore() {
   const unique   = new Set(filteredRows.map(r=>r.supporterID)).size;
   const total    = filteredRows.length;
   const depths   = Object.values(getDepthMap(filteredRows));
@@ -2472,15 +2477,17 @@ function buildExecutiveSummaryHTML() {
   const ratio    = unique>0?(total/unique).toFixed(2):'0.00';
   const multiPct = unique>0?((multi/unique)*100).toFixed(1):'0.0';
   const onePct   = unique>0?(((depths.filter(d=>d===1).length)/unique)*100).toFixed(1):'0.0';
+  return { unique, total, depths, multi, ratio, multiPct, onePct };
+}
 
-  // ── Date range ──
-  // If "All Time" is selected, derive actual first/last dates from filteredRows
+// dateRangeStr matches the Period filter's option text; longLabel is the client-facing form ("July 2026", "Q3 2026")
+function summaryDateRange() {
   const periodEl    = document.getElementById('filter-period');
   const periodValue = periodEl.value;
   const periodLabel = periodEl.options[periodEl.selectedIndex]?.text || 'All Time';
-  const gran        = document.getElementById('filter-granularity').value === 'quarterly' ? 'Quarterly' : 'Monthly';
-
-  let dateRangeStr;
+  const granRaw     = document.getElementById('filter-granularity').value;
+  const gran        = granRaw === 'quarterly' ? 'Quarterly' : 'Monthly';
+  let dateRangeStr, longLabel;
   if (periodValue === 'all') {
     const dates = filteredRows.map(r=>r.date).filter(Boolean).sort();
     if (dates.length) {
@@ -2489,11 +2496,18 @@ function buildExecutiveSummaryHTML() {
     } else {
       dateRangeStr = 'All Time';
     }
+    longLabel = dateRangeStr;
   } else {
     dateRangeStr = periodLabel;
+    const key = periodValue.slice(2);
+    if (periodValue.startsWith('m:'))      { const [y,m] = key.split('-'); longLabel = new Date(+y,+m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); }
+    else if (periodValue.startsWith('q:')) { const [y,q] = key.split('-'); longLabel = `${q} ${y}`; }
+    else longLabel = periodLabel;
   }
+  return { periodValue, periodLabel, gran, granRaw, dateRangeStr, longLabel };
+}
 
-  // ── Active drill-downs ──
+function summaryDrillDowns() {
   const drillDowns = [];
   if (F.hasER2) {
     const sourceEl = document.getElementById('filter-source');
@@ -2512,6 +2526,183 @@ function buildExecutiveSummaryHTML() {
   }
   const outlierOn = document.getElementById('outlier-toggle')?.checked;
   if (outlierOn && outlierThreshold < Infinity) drillDowns.push(`Outliers excluded (≤ ${outlierThreshold} steps)`);
+  return drillDowns;
+}
+
+// Performance by Period rows — GA4 columns only when they carry data (shared by both summaries)
+function periodTableData() {
+  const pd         = getPeriodData();
+  const hasGA4Data = hasAnyGA4Data();
+  const hasAdj     = hasGA4Data && adblockMode() !== 'off';
+  const hasCov     = F.hasGA4Events && F.hasGA4Time;
+
+  const headers = ['Period', 'Participants', 'Total Opt-Ins'];
+  if (hasCov)     headers.push('GA4 Submits', 'Coverage');
+  if (hasGA4Data) headers.push('GA4 Views');
+  if (hasAdj)     headers.push(`Adj. Views${adjHeaderSuffix()}`);
+  if (hasGA4Data) headers.push('CVR (raw)');
+  if (hasAdj)     headers.push('CVR (adj.)');
+
+  const rows = pd.map(d => {
+    const cells = [d.label, fmt(d.participants), fmt(d.optins)];
+    let erroneous = false;
+    if (hasCov) {
+      const c = getCoverage(d.period);
+      cells.push(c ? fmt(c.ga4) : '—', c ? `${(c.ratio * 100).toFixed(1)}%` : '—');
+      if (c && c.ratio > 1) erroneous = true;
+    }
+    if (hasGA4Data) {
+      const raw = getViewsForPeriod(d.period);
+      const adj = hasAdj ? getAdjustedViews(raw, d.period) : null;
+      const cvrRawNum = (raw != null && raw > 0) ? (d.participants / raw) * 100 : null;
+      const cvrAdjNum = (adj != null && adj > 0) ? (d.participants / adj) * 100 : null;
+      cells.push(raw != null ? fmt(raw) : '—');
+      if (hasAdj) cells.push(adj != null ? fmt(adj) : '—');
+      cells.push(cvrRawNum != null ? cvrRawNum.toFixed(2) + '%' : '—');
+      if (hasAdj) cells.push(cvrAdjNum != null ? cvrAdjNum.toFixed(2) + '%' : '—');
+      // Flag row if a rate exceeds 100% — indicates bad GA4 input or an unfiltered export
+      if ((cvrRawNum != null && cvrRawNum > 100) || (cvrAdjNum != null && cvrAdjNum > 100)) erroneous = true;
+    }
+    return { cells, erroneous };
+  });
+  return { headers, rows };
+}
+
+// ════════════════════════════════════════════════
+//  Short Summary — client-facing subset (Copy Short Summary)
+//  Same numbers as the full summary; fewer sections, GA4 page type before pages, and the
+//  three breakdown tables trimmed to rows with at least SHORT_MIN_SHARE of the table total
+//  (shares stay computed on the full total, hidden rows are explained in a footnote).
+// ════════════════════════════════════════════════
+const SHORT_MIN_SHARE = 0.10;
+
+function shortSummaryParts() {
+  const c  = summaryCore();
+  const dr = summaryDateRange();
+  const filters = summaryDrillDowns().filter(d => /^(Source|Campaign|Device):/.test(d));
+  const g  = F.hasGA4Events ? ga4SummaryData(currentPeriodKey()) : null;
+  const pct = (n, tot) => `${tot > 0 ? ((n / tot) * 100).toFixed(1) : 0}%`;
+  const minLabel = `${Math.round(SHORT_MIN_SHARE * 100)}%`;
+  const parts = { core: c, range: dr, filters, views: g ? g.views : null, types: null, pages: null, labels: null, firstSteps: null, period: periodTableData() };
+  if (g) {
+    if (g.types.length) {
+      const tot = g.types.reduce((a, [, v]) => a + v, 0);
+      parts.types = { rows: g.types.map(([t, n]) => ({ label: t, count: n, share: pct(n, tot) })) };
+    }
+    if (g.pages.length) {
+      const tot   = g.pages.reduce((a, p) => a + p.count, 0);
+      const named = g.pages.filter(p => p.name !== '(not set)');
+      const kept  = named.filter(p => p.count / tot >= SHORT_MIN_SHARE);
+      const unattributed = tot - named.reduce((a, p) => a + p.count, 0);
+      const notes = [];
+      if (kept.length < named.length) notes.push(`Showing pages with at least ${minLabel} share (${kept.length} of ${named.length})`);
+      if (unattributed > 0) notes.push(`${fmt(unattributed)} submits (${pct(unattributed, tot)}) had no recorded entry page`);
+      if (kept.length) parts.pages = { rows: kept.map(p => ({ label: p.name, type: p.type, count: p.count, share: pct(p.count, tot) })), note: notes.join('; ') };
+    }
+    const trimmed = (entries, noun, rateNoun) => {
+      const tot  = entries.reduce((a, [, v]) => a + v, 0);
+      const kept = entries.filter(([, n]) => n / tot >= SHORT_MIN_SHARE);
+      if (!kept.length) return null;
+      const notes = [];
+      if (kept.length < entries.length) notes.push(`Showing ${noun} with at least ${minLabel} share (${kept.length} of ${entries.length})`);
+      if (g.views) notes.push(`% of Visitors = ${rateNoun} ÷ ${fmt(g.views)} GA4 ladder page views`);
+      return { rows: kept.map(([l, n]) => ({ label: l, count: n, share: pct(n, tot), rate: g.views ? visitorRate(n, g.views) : null })), note: notes.join('; ') };
+    };
+    if (g.labels.length)     parts.labels     = trimmed(g.labels, 'opt-in steps', 'submits');
+    if (g.firstSteps.length) parts.firstSteps = trimmed(g.firstSteps, 'first steps', 'starters');
+  }
+  return parts;
+}
+
+function buildShortSummaryHTML() {
+  const p = shortSummaryParts();
+  const muted = t => `<span style="color:#6b7066;font-size:12px;">${t}</span>`;
+  const note  = t => t ? `<p style="margin:6px 0 0;font-size:12px;color:#6b7066;">${esc(t)}</p>` : '';
+  let html = `<div style="font-family:Georgia,serif;max-width:640px;color:#1c1c1a;line-height:1.5;">`;
+  html += `<p style="margin:0 0 4px;font-size:14px;"><strong>Date Range:</strong> ${esc(p.range.longLabel)}</p>`;
+  html += `<p style="margin:0;font-size:14px;"><strong>View:</strong> ${p.range.gran}</p>`;
+  if (p.filters.length) html += `<p style="margin:4px 0 0;font-size:14px;"><strong>Filters:</strong> ${esc(p.filters.join(' · '))}</p>`;
+  html += sectionSpacer();
+
+  html += sectionHeading('Participation');
+  html += summaryTable(['Metric', 'Value'], [
+    ['Unique Participants', `<strong>${fmt(p.core.unique)}</strong>`],
+    ['Total Opt-Ins',       `<strong>${fmt(p.core.total)}</strong>`],
+    ['Depth Ratio',         `<strong>${p.core.ratio}×</strong> ${muted('(opt-ins per participant)')}`],
+  ]);
+  html += sectionSpacer();
+  html += sectionHeading('Engagement Quality');
+  html += summaryTable(['Metric', 'Value'], [
+    ['Single-Step Participants', `<strong>${p.core.onePct}%</strong> ${muted('took only 1 opt-in')}`],
+    ['Multi-Step Participants',  `<strong>${p.core.multiPct}%</strong> ${muted('took 2+ opt-ins')}`],
+  ]);
+  html += sectionSpacer();
+
+  if (p.types) {
+    html += sectionHeading('Entry Page Type (GA4)');
+    html += summaryTable(['Page Type', 'Submits', 'Share'], p.types.rows.map(r => [esc(r.label), fmt(r.count), r.share]));
+    html += sectionSpacer();
+  }
+  if (p.pages) {
+    html += sectionHeading('Top Ladder Entry Pages (GA4)');
+    html += summaryTable(['Page', 'Type', 'Submits', 'Share'], p.pages.rows.map(r => [esc(r.label), esc(r.type), fmt(r.count), r.share]));
+    html += note(p.pages.note);
+    html += sectionSpacer();
+  }
+  const rateHead = p.views ? ['% of Visitors'] : [];
+  const rateCell = r => p.views ? [r.rate] : [];
+  if (p.labels) {
+    html += sectionHeading('Opt-Ins Taken (GA4)');
+    html += summaryTable(['Opt-In Step', 'Submits', 'Share', ...rateHead], p.labels.rows.map(r => [esc(r.label), fmt(r.count), r.share, ...rateCell(r)]));
+    html += note(p.labels.note);
+    html += sectionSpacer();
+  }
+  if (p.firstSteps) {
+    html += sectionHeading('First Step Shown (GA4)');
+    html += summaryTable(['First Step', 'Starters', 'Share', ...rateHead], p.firstSteps.rows.map(r => [esc(r.label), fmt(r.count), r.share, ...rateCell(r)]));
+    html += note(p.firstSteps.note);
+    html += sectionSpacer();
+  }
+  {
+    const rowMeta = p.period.rows.map(r => r.erroneous ? {bg:'#fde8e8', color:'#9b1c1c'} : null);
+    html += sectionHeading('Performance by Period');
+    html += summaryTable(p.period.headers, p.period.rows.map(r => r.cells), rowMeta);
+    html += sectionSpacer();
+  }
+  html += `</div>`;
+  return html;
+}
+
+function buildShortSummaryPlaintext() {
+  const p = shortSummaryParts();
+  const lines = [`Date Range: ${p.range.longLabel}`, `View: ${p.range.gran}`];
+  if (p.filters.length) lines.push(`Filters: ${p.filters.join('  ·  ')}`);
+  lines.push('', 'PARTICIPATION',
+    `  Unique Participants   ${fmt(p.core.unique)}`,
+    `  Total Opt-Ins         ${fmt(p.core.total)}`,
+    `  Depth Ratio           ${p.core.ratio}×  (opt-ins per participant)`);
+  lines.push('', 'ENGAGEMENT QUALITY',
+    `  Single-Step Participants  ${p.core.onePct}%  (took only 1 opt-in)`,
+    `  Multi-Step Participants   ${p.core.multiPct}%  (took 2+ opt-ins)`);
+  const row = (label, count, share, extra = '') => `  ${String(label).slice(0, 34).padEnd(34)}${fmt(count).padStart(7)}  (${share})${extra}`;
+  if (p.types)      { lines.push('', 'ENTRY PAGE TYPE (GA4)');        p.types.rows.forEach(r => lines.push(row(r.label, r.count, r.share))); }
+  if (p.pages)      { lines.push('', 'TOP LADDER ENTRY PAGES (GA4)'); p.pages.rows.forEach(r => lines.push(row(r.label, r.count, r.share, `  ${r.type}`))); if (p.pages.note) lines.push(`  (${p.pages.note})`); }
+  if (p.labels)     { lines.push('', 'OPT-INS TAKEN (GA4)');          p.labels.rows.forEach(r => lines.push(row(r.label, r.count, r.share, r.rate ? `  ${r.rate} of visitors` : ''))); if (p.labels.note) lines.push(`  (${p.labels.note})`); }
+  if (p.firstSteps) { lines.push('', 'FIRST STEP SHOWN (GA4)');       p.firstSteps.rows.forEach(r => lines.push(row(r.label, r.count, r.share, r.rate ? `  ${r.rate} of visitors` : ''))); if (p.firstSteps.note) lines.push(`  (${p.firstSteps.note})`); }
+  lines.push('', 'PERFORMANCE BY PERIOD', ...textTable(p.period.headers, p.period.rows.map(r => r.cells)));
+  return lines.join('\n');
+}
+
+function textTable(headers, rows) {
+  const widths = headers.map((h, i) => Math.max(String(h).length, ...rows.map(r => String(r[i] ?? '').length)));
+  const line = cells => '  ' + cells.map((v, i) => i === 0 ? String(v ?? '').padEnd(widths[i]) : String(v ?? '').padStart(widths[i])).join('  ');
+  return [line(headers), ...rows.map(line)];
+}
+
+function buildExecutiveSummaryHTML() {
+  const { unique, total, depths, multi, ratio, multiPct, onePct } = summaryCore();
+  const { periodValue, periodLabel, gran, dateRangeStr } = summaryDateRange();
+  const drillDowns = summaryDrillDowns();
 
   const today = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const g = (F.hasGA4Events || F.hasGA4Views) ? ga4SummaryData(currentPeriodKey()) : null;
@@ -2686,43 +2877,8 @@ function buildExecutiveSummaryHTML() {
 
   // Performance by Period — always shown; GA4 columns only when they carry data
   {
-    const pd         = getPeriodData();
-    const hasGA4Data = hasAnyGA4Data();
-    const hasAdj     = hasGA4Data && adblockMode() !== 'off';
-    const hasCov     = F.hasGA4Events && F.hasGA4Time;
-
-    const headers = ['Period', 'Participants', 'Total Opt-Ins'];
-    if (hasCov)     headers.push('GA4 Submits', 'Coverage');
-    if (hasGA4Data) headers.push('GA4 Views');
-    if (hasAdj)     headers.push(`Adj. Views${adjHeaderSuffix()}`);
-    if (hasGA4Data) headers.push('CVR (raw)');
-    if (hasAdj)     headers.push('CVR (adj.)');
-
-    const rows = pd.map(d => {
-      const cells = [d.label, fmt(d.participants), fmt(d.optins)];
-      let erroneous = false;
-      if (hasCov) {
-        const c = getCoverage(d.period);
-        cells.push(c ? fmt(c.ga4) : '—', c ? `${(c.ratio * 100).toFixed(1)}%` : '—');
-        if (c && c.ratio > 1) erroneous = true;
-      }
-      if (hasGA4Data) {
-        const raw = getViewsForPeriod(d.period);
-        const adj = hasAdj ? getAdjustedViews(raw, d.period) : null;
-        const cvrRawNum = (raw != null && raw > 0) ? (d.participants / raw) * 100 : null;
-        const cvrAdjNum = (adj != null && adj > 0) ? (d.participants / adj) * 100 : null;
-        cells.push(raw != null ? fmt(raw) : '—');
-        if (hasAdj) cells.push(adj != null ? fmt(adj) : '—');
-        cells.push(cvrRawNum != null ? cvrRawNum.toFixed(2) + '%' : '—');
-        if (hasAdj) cells.push(cvrAdjNum != null ? cvrAdjNum.toFixed(2) + '%' : '—');
-        // Flag row if a rate exceeds 100% — indicates bad GA4 input or an unfiltered export
-        if ((cvrRawNum != null && cvrRawNum > 100) || (cvrAdjNum != null && cvrAdjNum > 100)) erroneous = true;
-      }
-      return { cells, erroneous };
-    });
-
+    const { headers, rows } = periodTableData();
     const rowMeta = rows.map(r => r.erroneous ? {bg:'#fde8e8', color:'#9b1c1c'} : null);
-
     html += sectionHeading('Performance by Period');
     html += summaryTable(headers, rows.map(r => r.cells), rowMeta);
     html += sectionSpacer();
@@ -2823,11 +2979,12 @@ function buildExecutiveSummaryPlaintext() {
   return lines.filter(l=>l!==undefined).join('\n');
 }
 
-async function copyExecutiveSummary() {
-  const btn = document.getElementById('btn-copy-summary');
+async function copyExecutiveSummary(mode = 'full') {
+  const short = mode === 'short';
+  const btn = document.getElementById(short ? 'btn-copy-short' : 'btn-copy-summary');
   try {
-    const html      = buildExecutiveSummaryHTML();
-    const plaintext = buildExecutiveSummaryPlaintext();
+    const html      = short ? buildShortSummaryHTML()      : buildExecutiveSummaryHTML();
+    const plaintext = short ? buildShortSummaryPlaintext() : buildExecutiveSummaryPlaintext();
 
     // Try rich-text copy first (ClipboardItem API), fall back to plain text
     if (typeof ClipboardItem !== 'undefined') {
@@ -2845,7 +3002,7 @@ async function copyExecutiveSummary() {
     btn.style.borderColor = 'var(--fern)';
     btn.style.color = 'var(--fern)';
     setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor=''; btn.style.color=''; }, 2000);
-    showToast('✓ Executive summary copied to clipboard');
+    showToast(short ? '✓ Short summary copied to clipboard' : '✓ Full summary copied to clipboard');
   } catch(e) {
     showToast('⚠ Could not access clipboard');
   }
