@@ -105,6 +105,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(
   border-radius: 4px; padding: 5px 10px; background: white; color: var(--ink); cursor: pointer; outline: none;
 }
 .filter-select:focus { border-color: var(--sage); }
+.filter-date { font-family: 'DM Mono', monospace; font-size: 12px; padding: 4px 8px; }
 
 /* ── Main ── */
 .main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
@@ -463,6 +464,13 @@ th.ga4-col { color: var(--bark) !important; }
       <span class="filter-label">Period</span>
       <select class="filter-select" id="filter-period" onchange="applyFilters()"><option value="all">All Time</option></select>
     </div>
+    <!-- Custom date range — shown when Period = Custom range… -->
+    <div class="filter-group" id="filter-custom-group" style="display:none;">
+      <span class="filter-label">From</span>
+      <input type="date" class="filter-select filter-date" id="range-start" onchange="applyFilters()">
+      <span class="filter-label">To</span>
+      <input type="date" class="filter-select filter-date" id="range-end" onchange="applyFilters()">
+    </div>
     <div class="filter-group" id="filter-source-group" style="display:none;">
       <span class="filter-label">Source</span>
       <select class="filter-select" id="filter-source" onchange="applyFilters()"><option value="all">All Sources</option></select>
@@ -807,6 +815,9 @@ function populateFilters() {
   pSel.innerHTML = '<option value="all">All Time</option>';
   quarters.forEach(q => addOpt(pSel,'q:'+q,q));
   months.forEach(m   => addOpt(pSel,'m:'+m,formatMonth(m)));
+  addOpt(pSel,'custom','Custom range…');
+  const bounds = enDateBounds();
+  ['range-start','range-end'].forEach(id => { const el = document.getElementById(id); if (el) { el.min = bounds.min; el.max = bounds.max; el.value = ''; } });
 
   if (F.hasER2) {
     document.getElementById('filter-source-group').style.display = 'flex';
@@ -852,9 +863,22 @@ function applyFilters() {
     );
   }
 
+  // Custom range: show the date inputs (defaulting to the data bounds) and read them
+  const customGroup = document.getElementById('filter-custom-group');
+  if (customGroup) customGroup.style.display = period === 'custom' ? 'flex' : 'none';
+  if (period === 'custom') {
+    const b = enDateBounds();
+    const rs = document.getElementById('range-start'), re = document.getElementById('range-end');
+    if (rs && !rs.value) rs.value = b.min;
+    if (re && !re.value) re.value = b.max;
+  }
+  const range = period === 'custom' ? getRange() : null;
+
   filteredRows = allRows.filter(r => {
     if (excludeOutliers && outlierIDs.has(r.supporterID))              return false;
-    if (period !== 'all') {
+    if (range) {
+      if (!r.date || r.date < range.start || r.date > range.end)      return false;
+    } else if (period !== 'all') {
       if (period.startsWith('q:') && r.quarter !== period.slice(2))    return false;
       if (period.startsWith('m:') && r.month   !== period.slice(2))    return false;
     }
@@ -1034,9 +1058,9 @@ function mapGA4Header(cells) {
 // Resolve a row's month from whichever time columns the export carries
 function ga4TimeFromRow(cells, cols, ctx = {}) {
   const get = k => cols[k] != null ? String(cells[cols[k]] ?? '').trim() : '';
-  let y = null, m = null, source = null, mm;
+  let y = null, m = null, dd = null, source = null, mm;
   const d = get('date') || get('dateHour');
-  if (d && (mm = d.match(/^(\d{4})(\d{2})(\d{2})/))) { y = mm[1]; m = mm[2]; source = 'Date'; }
+  if (d && (mm = d.match(/^(\d{4})(\d{2})(\d{2})/))) { y = mm[1]; m = mm[2]; dd = mm[3]; source = 'Date'; }
   if (!y && cols.nthMonth != null && /^\d+$/.test(get('nthMonth'))) {
     if (!ctx.rangeStart) return { month: null, quarter: null, source: 'nthNoRange' };
     const dt = new Date(ctx.rangeStart.getFullYear(), ctx.rangeStart.getMonth() + parseInt(get('nthMonth'), 10), 1);
@@ -1045,7 +1069,7 @@ function ga4TimeFromRow(cells, cols, ctx = {}) {
   if (!y && cols.nthDay != null && /^\d+$/.test(get('nthDay'))) {
     if (!ctx.rangeStart) return { month: null, quarter: null, source: 'nthNoRange' };
     const dt = new Date(ctx.rangeStart.getFullYear(), ctx.rangeStart.getMonth(), ctx.rangeStart.getDate() + parseInt(get('nthDay'), 10));
-    y = String(dt.getFullYear()); m = String(dt.getMonth() + 1); source = 'Nth day';
+    y = String(dt.getFullYear()); m = String(dt.getMonth() + 1); dd = String(dt.getDate()).padStart(2, '0'); source = 'Nth day';
   }
   if (!y && (mm = get('yearMonth').match(/^(\d{4})(\d{2})$/))) { y = mm[1]; m = mm[2]; source = 'Year month'; }
   if (!y) {
@@ -1063,7 +1087,7 @@ function ga4TimeFromRow(cells, cols, ctx = {}) {
   const mi = parseInt(m, 10);
   if (mi < 1 || mi > 12) return { month: null, quarter: null, source };
   const month = `${y}-${String(mi).padStart(2, '0')}`;
-  return { month, quarter: quarterOf(month), source };
+  return { month, quarter: quarterOf(month), source, date: (dd && +dd >= 1 && +dd <= 31) ? `${month}-${dd}` : null };
 }
 
 // Parse one GA4 export (decoded text) into a GA4Table, or {error}
@@ -1147,7 +1171,7 @@ function parseGA4Text(text, fileName, encoding) {
     const n = kind === 'view' ? (Number.isNaN(views) ? count : views) : (Number.isNaN(count) ? views : count);
 
     const row = {
-      kind, event, month: t.month, quarter: t.quarter, _fid: fileId,
+      kind, event, month: t.month, quarter: t.quarter, date: t.date || null, _fid: fileId,
       parentType: dim('parentType'), parentName: dim('parentName'), parentId: dim('parentId'),
       optinLabel: dim('optinLabel'), optinId: dim('optinId'),
       firstStepName: dim('firstStepName'), firstStepId: dim('firstStepId'),
@@ -1171,7 +1195,7 @@ function parseGA4Text(text, fileName, encoding) {
   const hasTime = rows.length > 0 && withMonth / rows.length >= 0.9;
   let kept = rows;
   if (hasTime) { kept = rows.filter(r => r.month); stats.skipped.noTime = rows.length - kept.length; }
-  else kept.forEach(r => { r.month = null; r.quarter = null; });
+  else kept.forEach(r => { r.month = null; r.quarter = null; r.date = null; });
 
   const file = { id: fileId, name: fileName, label, rows: kept.length, delimiter: delimiter === '\t' ? 'TSV' : 'CSV', encoding, metaLines, header,
                  unmapped: map.unmapped, ignoredCols: map.ignored, stepAsDim, monthOnly, nthNoRange, zeroMetrics,
@@ -1185,6 +1209,7 @@ function parseGA4Text(text, fileName, encoding) {
 
 function refreshGA4Table(t) {
   t.months      = new Set(t.rows.map(r => r.month).filter(Boolean));
+  t.daily       = !!t.hasTime && t.rows.length > 0 && t.rows.every(r => r.date);   // Date/Nth day exports follow custom ranges exactly
   t.submitTotal = t.rows.reduce((a, r) => a + (r.kind === 'submit' ? r.count : 0), 0);
   t.viewTotal   = t.rows.reduce((a, r) => a + (r.kind === 'view'   ? r.count : 0), 0);
 }
@@ -1282,11 +1307,64 @@ function ga4MonthRange(t) { const ms = [...t.months].sort(); return [ms[0], ms[m
 function ga4RangeLabel(t) { const [lo, hi] = ga4MonthRange(t); return lo === hi ? formatMonth(lo) : `${formatMonth(lo)} – ${formatMonth(hi)}`; }
 
 // ── Period-aware queries ──
+// ── Custom date range (Period filter = "Custom range…") ──
+// A period key (pk) is null (All Time), 'YYYY-MM', 'YYYY-Qn', or a range object from getRange().
+function enDateBounds() {
+  const dates = allRows.map(r => r.date).filter(Boolean);
+  if (!dates.length) return { min: '', max: '' };
+  return { min: dates.reduce((a, b) => a < b ? a : b), max: dates.reduce((a, b) => a > b ? a : b) };
+}
+function fmtDay(d) { const [y, m, day] = d.split('-'); return new Date(+y, +m - 1, +day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function lastDayOf(month) { const [y, m] = month.split('-').map(Number); return `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`; }
+function quarterMonths(q) { const [y, n] = q.split('-Q'); return [1, 2, 3].map(i => `${y}-${String((n - 1) * 3 + i).padStart(2, '0')}`); }
+function monthSpanLabel(monthsSet) { const ms = [...monthsSet].sort(); return ms.length <= 1 ? formatMonth(ms[0]) : `${formatMonth(ms[0])} – ${formatMonth(ms[ms.length - 1])}`; }
+function getRange() {
+  const sel = document.getElementById('filter-period');
+  if (!sel || sel.value !== 'custom') return null;
+  const b = enDateBounds();
+  let start = document.getElementById('range-start')?.value || b.min;
+  let end   = document.getElementById('range-end')?.value   || b.max;
+  if (!start || !end) return null;
+  if (start > end) [start, end] = [end, start];
+  const months = new Set(), partial = new Set();
+  for (let cur = start.slice(0, 7); cur <= end.slice(0, 7); ) {
+    months.add(cur);
+    if (start > `${cur}-01` || end < lastDayOf(cur)) partial.add(cur);   // the range cuts into this month
+    const [y, m] = cur.split('-').map(Number);
+    const nxt = new Date(y, m, 1); cur = `${nxt.getFullYear()}-${String(nxt.getMonth() + 1).padStart(2, '0')}`;
+  }
+  return { custom: true, start, end, months, partial, label: `${fmtDay(start)} – ${fmtDay(end)}` };
+}
+// Clip a range to one month or quarter key (for per-row GA4 figures of partial periods)
+function clipRange(range, key) {
+  const months = key.includes('-Q') ? quarterMonths(key).filter(m => range.months.has(m)) : [key];
+  const first = `${months[0]}-01`, last = lastDayOf(months[months.length - 1]);
+  const start = range.start > first ? range.start : first, end = range.end < last ? range.end : last;
+  const partial = new Set(months.filter(m => start > `${m}-01` || end < lastDayOf(m)));
+  return { ...range, start, end, months: new Set(months), partial };
+}
 function currentPeriodKey() {
   const v = document.getElementById('filter-period').value;
-  return v === 'all' ? null : v.slice(2);          // 'YYYY-MM' or 'YYYY-Qn'
+  if (v === 'all') return null;
+  if (v === 'custom') return getRange();           // range object, or null before the EN file is loaded
+  return v.slice(2);                                // 'YYYY-MM' or 'YYYY-Qn'
 }
-function periodMatches(r, pk) { return !pk || r.month === pk || r.quarter === pk; }
+function periodMatches(r, pk) {
+  if (!pk) return true;
+  if (typeof pk === 'string') return r.month === pk || r.quarter === pk;
+  if (r.date) return r.date >= pk.start && r.date <= pk.end;   // day-level rows: EN rows, GA4 exports with a Date column
+  return pk.months.has(r.month);                                // monthly GA4 rows: whole months overlapping the range
+}
+// GA4 figures for one period row. In a custom range, a partial period gets GA4 numbers only from day-level exports.
+function periodGA4Figures(d) {
+  const range = getRange();
+  const pk = (range && (d.partial || d.incomplete)) ? clipRange(range, d.period) : d.period;
+  const T = ga4TotalsTable(), V = ga4ViewsTable();
+  const cov = (d.partial && !(T && T.daily)) ? null : getCoverage(pk);
+  const raw = (d.partial && !(V && V.daily)) ? null : getViewsForPeriod(pk);
+  return { cov, raw, pk };
+}
+const PARTIAL_NOTE = '* Partial period within the selected date range: participants and opt-ins cover only the selected days. GA4 columns are blank where the range cuts into a month and the GA4 export is monthly; export with the Date dimension to fill them.';
 function ga4RowsFor(table, pk, kind = 'submit') {
   if (!table) return [];
   return table.rows.filter(r => r.kind === kind && (!table.hasTime || periodMatches(r, pk)));
@@ -1303,21 +1381,31 @@ function getCoverage(pk) {
   const T = ga4TotalsTable();
   if (!T) return null;
   if (pk && !T.hasTime) return null;
+  // Monthly GA4 rows cannot follow a range that cuts into a month: compare whole months on both sides
+  const isRange = !!(pk && typeof pk === 'object');
+  const wholeMonths = isRange && !T.daily && pk.partial.size > 0;
   const ga4 = ga4RowsFor(T, pk).reduce((a, r) => a + r.count, 0);
   const wholeExport = !T.hasTime;
   let en;
   if (wholeExport) en = allRows.length;
   else {
     const [lo, hi] = ga4MonthRange(T);
-    en = allRows.filter(r => r.month !== 'Unknown' && r.month >= lo && r.month <= hi && periodMatches(r, pk)).length;
+    const match = (isRange && !T.daily) ? (r => pk.months.has(r.month)) : (r => periodMatches(r, pk));
+    en = allRows.filter(r => r.month !== 'Unknown' && r.month >= lo && r.month <= hi && match(r)).length;
   }
   if (!en) return null;
-  return { ga4, en, ratio: ga4 / en, wholeExport };
+  return { ga4, en, ratio: ga4 / en, wholeExport, wholeMonths };
 }
 
 // Manual entry wins over the imported page_view count; quarters sum their months
 function getViewsForPeriod(p) {
   if (!p) return null;
+  if (typeof p === 'object') {
+    const V = ga4ViewsTable();
+    if (V && V.daily) { const n = V.rows.filter(r => r.kind === 'view' && r.date && r.date >= p.start && r.date <= p.end).reduce((a, r) => a + r.count, 0); return n || null; }
+    const months = [...p.months].filter(m => ga4Views[m] != null || ga4AutoViews[m] != null);
+    return months.length ? months.reduce((sum, m) => sum + (ga4Views[m] ?? ga4AutoViews[m]), 0) : null;
+  }
   if (!p.includes('-Q')) return ga4Views[p] ?? ga4AutoViews[p] ?? null;
   const months = [...new Set([...Object.keys(ga4Views), ...Object.keys(ga4AutoViews)])].filter(m => quarterOf(m) === p);
   return months.length ? months.reduce((s, m) => s + (ga4Views[m] ?? ga4AutoViews[m]), 0) : null;
@@ -1486,11 +1574,14 @@ function renderGA4Sections() {
   if (!document.getElementById('ga4-block')) return;
   const pk = currentPeriodKey();
   const periodEl = document.getElementById('filter-period');
-  const periodLabel = pk ? (periodEl.options[periodEl.selectedIndex]?.text || pk) : '';
+  const isRange = !!(pk && typeof pk === 'object');
+  const periodLabel = isRange ? pk.label : (pk ? (periodEl.options[periodEl.selectedIndex]?.text || pk) : '');
   const setScope = (table, el) => {
     if (!el) return;
     const whole = !table || !table.hasTime;
-    el.textContent = whole ? 'Entire export range' : (pk ? `Filtered to ${periodLabel}` : '');
+    let text = whole ? 'Entire export range' : (pk ? `Filtered to ${periodLabel}` : '');
+    if (!whole && isRange && !table.daily && pk.partial.size) text += ` · GA4 by whole month (${monthSpanLabel(pk.months)})`;
+    el.textContent = text;
     el.classList.toggle('whole', whole);
   };
   const othersActive = ['filter-source', 'filter-campaign', 'filter-device'].some(id => {
@@ -1870,6 +1961,7 @@ function buildDashboardShell() {
           <tbody id="period-table-body"></tbody>
         </table>
       </div>
+      <div class="chart-subtitle" id="period-table-note" style="margin-top:8px;"></div>
     </div>
 
     <!-- Depth detail + PG -->
@@ -1929,6 +2021,7 @@ function getDepthMap(rows) {
 function getPeriodData() {
   const gran = document.getElementById('filter-granularity').value;
   const key  = gran === 'quarterly' ? 'quarter' : 'month';
+  const range = getRange();
   const byP  = {};
   filteredRows.forEach(r => {
     const p = r[key]; if (p==='Unknown') return;
@@ -1937,8 +2030,10 @@ function getPeriodData() {
   return Object.keys(byP).sort().map(p => {
     const rows = byP[p], unique = new Set(rows.map(r=>r.supporterID)).size, total = rows.length;
     const depths = Object.values(getDepthMap(rows));
+    const partial    = !!range && (key === 'month' ? range.partial.has(p) : quarterMonths(p).some(m => range.partial.has(m)));   // range cuts into a month
+    const incomplete = !!range && key === 'quarter' && quarterMonths(p).some(m => !range.months.has(m));                          // whole months missing
     return {
-      period:p, label:gran==='quarterly'?p:formatMonth(p),
+      period:p, label:(gran==='quarterly'?p:formatMonth(p)) + ((partial || incomplete) ? '*' : ''), partial, incomplete,
       participants:unique, optins:total,
       ratio:unique>0?+(total/unique).toFixed(2):0,
       oneStepPct:  unique>0?+((depths.filter(d=>d===1).length/unique)*100).toFixed(1):0,
@@ -1970,7 +2065,8 @@ function renderKPIs() {
       };
       const first = fmtMonthYear(dates[0]);
       const last  = fmtMonthYear(dates[dates.length-1]);
-      const rangeStr = first === last ? first : `${first} – ${last}`;
+      const customRange = getRange();
+      const rangeStr = customRange ? customRange.label : (first === last ? first : `${first} – ${last}`);
       dateBar.innerHTML = `<span>Showing data for</span><span class="date-range-label">${rangeStr}</span>`;
     } else {
       dateBar.innerHTML = '';
@@ -2002,7 +2098,7 @@ function renderKPIs() {
     kpis.push({
       label:'GA4 Coverage',
       value: c ? (c.ratio*100).toFixed(1)+'%' : '—',
-      sub:   c ? `${fmt(c.ga4)} GA4 ÷ ${fmt(c.en)} EN submits${c.wholeExport ? ' · entire export' : ''}` : 'no GA4 rows in this period',
+      sub:   c ? `${fmt(c.ga4)} GA4 ÷ ${fmt(c.en)} EN submits${c.wholeExport ? ' · entire export' : ''}${c.wholeMonths ? ' · whole months' : ''}` : 'no GA4 rows in this period',
       accent:'accent-sage'
     });
   }
@@ -2260,6 +2356,8 @@ function renderTable() {
   const adblockOn = adblockMode() !== 'off';
   const tbody   = document.getElementById('period-table-body');
   const thead   = document.getElementById('period-table-head');
+  const range   = getRange();
+  let anyPartial = pd.some(d => d.partial || d.incomplete);
   tbody.innerHTML = '';
 
   // Update subtitle
@@ -2300,18 +2398,17 @@ function renderTable() {
     return `<td class="views-cell">${fmt(raw)}</td><td class="views-cell ${adj != null ? 'adjusted' : ''}">${adj != null ? fmt(adj) : '—'}</td>`;
   }
 
-  function covCells(pk) {
-    const c = getCoverage(pk);
+  function covCells(c) {
     if (!c) return { html: `<td class="views-cell">—</td><td class="views-cell">—</td>`, error: false };
     return { html: `<td class="views-cell">${fmt(c.ga4)}</td><td class="cvr-cell">${(c.ratio * 100).toFixed(1)}%</td>`, error: c.ratio > 1 };
   }
 
-  // GA4-derived cells for one period key (month or quarter) — shared by month rows and quarter subtotals
-  function ga4Cells(pk, participants) {
+  // GA4-derived cells for one period row (month or quarter) — partial periods only get GA4 numbers from day-level exports
+  function ga4Cells(d, participants) {
+    const { cov, raw, pk } = periodGA4Figures(d);
     let html = '', error = false;
-    if (hasCov) { const c = covCells(pk); html += c.html; error = error || c.error; }
+    if (hasCov) { const c = covCells(cov); html += c.html; error = error || c.error; }
     if (hasGA4) {
-      const raw = getViewsForPeriod(pk);
       const adj = getAdjustedViews(raw, pk);
       const rawCvr = cvrCell(participants, raw);
       const adjCvr = adblockOn ? cvrCell(participants, adj, 'adjusted') : { html: '', error: false };
@@ -2324,7 +2421,7 @@ function renderTable() {
   function rowCells(d) {
     const base = `<td>${d.label}</td><td>${fmt(d.participants)}</td><td>${fmt(d.optins)}</td>
       <td><span class="ratio-badge">${d.ratio}×</span></td><td>${d.oneStepPct}%</td><td>${d.multiStepPct}%</td>`;
-    const g = ga4Cells(d.period, d.participants);
+    const g = ga4Cells(d, d.participants);
     return { html: base + g.html, error: g.error };
   }
 
@@ -2347,8 +2444,11 @@ function renderTable() {
       const qP  = months.reduce((a, b) => a + b.participants, 0);
       const qO  = months.reduce((a, b) => a + b.optins, 0);
       const qRatio = qP > 0 ? (qO / qP).toFixed(2) : '0.00';
-      const g = ga4Cells(qk, qP);
-      tr(`<td>${qk} Total</td><td>${fmt(qP)}</td><td>${fmt(qO)}</td>
+      const qCut = !!range && quarterMonths(qk).some(m => range.partial.has(m));
+      const qIncomplete = !!range && quarterMonths(qk).some(m => !range.months.has(m));
+      anyPartial = anyPartial || qCut || qIncomplete;
+      const g = ga4Cells({ period: qk, partial: qCut, incomplete: qIncomplete }, qP);
+      tr(`<td>${qk} Total${(qCut || qIncomplete) ? '*' : ''}</td><td>${fmt(qP)}</td><td>${fmt(qO)}</td>
           <td><span class="ratio-badge">${qRatio}×</span></td><td>—</td><td>—</td>${g.html}`,
         g.error ? 'q-row cvr-error' : 'q-row');
     });
@@ -2358,6 +2458,8 @@ function renderTable() {
       tr(html, error ? 'cvr-error' : '');
     });
   }
+  const note = document.getElementById('period-table-note');
+  if (note) note.textContent = anyPartial ? PARTIAL_NOTE : '';
 }
 
 // ════════════════════════════════════════════════
@@ -2498,11 +2600,12 @@ function summaryDateRange() {
     }
     longLabel = dateRangeStr;
   } else {
-    dateRangeStr = periodLabel;
+    const rg = periodValue === 'custom' ? getRange() : null;
+    dateRangeStr = rg ? rg.label : periodLabel;
     const key = periodValue.slice(2);
     if (periodValue.startsWith('m:'))      { const [y,m] = key.split('-'); longLabel = new Date(+y,+m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); }
     else if (periodValue.startsWith('q:')) { const [y,q] = key.split('-'); longLabel = `${q} ${y}`; }
-    else longLabel = periodLabel;
+    else longLabel = dateRangeStr;
   }
   return { periodValue, periodLabel, gran, granRaw, dateRangeStr, longLabel };
 }
@@ -2546,14 +2649,15 @@ function periodTableData() {
   const rows = pd.map(d => {
     const cells = [d.label, fmt(d.participants), fmt(d.optins)];
     let erroneous = false;
+    const fig = periodGA4Figures(d);
     if (hasCov) {
-      const c = getCoverage(d.period);
+      const c = fig.cov;
       cells.push(c ? fmt(c.ga4) : '—', c ? `${(c.ratio * 100).toFixed(1)}%` : '—');
       if (c && c.ratio > 1) erroneous = true;
     }
     if (hasGA4Data) {
-      const raw = getViewsForPeriod(d.period);
-      const adj = hasAdj ? getAdjustedViews(raw, d.period) : null;
+      const raw = fig.raw;
+      const adj = hasAdj ? getAdjustedViews(raw, fig.pk) : null;
       const cvrRawNum = (raw != null && raw > 0) ? (d.participants / raw) * 100 : null;
       const cvrAdjNum = (adj != null && adj > 0) ? (d.participants / adj) * 100 : null;
       cells.push(raw != null ? fmt(raw) : '—');
@@ -2565,7 +2669,7 @@ function periodTableData() {
     }
     return { cells, erroneous };
   });
-  return { headers, rows };
+  return { headers, rows, note: pd.some(d => d.partial || d.incomplete) ? PARTIAL_NOTE : '' };
 }
 
 // ════════════════════════════════════════════════
@@ -2667,6 +2771,7 @@ function buildShortSummaryHTML() {
     const rowMeta = p.period.rows.map(r => r.erroneous ? {bg:'#fde8e8', color:'#9b1c1c'} : null);
     html += sectionHeading('Performance by Period');
     html += summaryTable(p.period.headers, p.period.rows.map(r => r.cells), rowMeta);
+    if (p.period.note) html += `<p style="margin:6px 0 0;font-size:12px;color:#6b7066;">${esc(p.period.note)}</p>`;
     html += sectionSpacer();
   }
   html += `</div>`;
@@ -2690,6 +2795,7 @@ function buildShortSummaryPlaintext() {
   if (p.labels)     { lines.push('', 'OPT-INS TAKEN (GA4)');          p.labels.rows.forEach(r => lines.push(row(r.label, r.count, r.share, r.rate ? `  ${r.rate} of visitors` : ''))); if (p.labels.note) lines.push(`  (${p.labels.note})`); }
   if (p.firstSteps) { lines.push('', 'FIRST STEP SHOWN (GA4)');       p.firstSteps.rows.forEach(r => lines.push(row(r.label, r.count, r.share, r.rate ? `  ${r.rate} of visitors` : ''))); if (p.firstSteps.note) lines.push(`  (${p.firstSteps.note})`); }
   lines.push('', 'PERFORMANCE BY PERIOD', ...textTable(p.period.headers, p.period.rows.map(r => r.cells)));
+  if (p.period.note) lines.push(`  (${p.period.note})`);
   return lines.join('\n');
 }
 
@@ -2877,10 +2983,11 @@ function buildExecutiveSummaryHTML() {
 
   // Performance by Period — always shown; GA4 columns only when they carry data
   {
-    const { headers, rows } = periodTableData();
+    const { headers, rows, note } = periodTableData();
     const rowMeta = rows.map(r => r.erroneous ? {bg:'#fde8e8', color:'#9b1c1c'} : null);
     html += sectionHeading('Performance by Period');
     html += summaryTable(headers, rows.map(r => r.cells), rowMeta);
+    if (note) html += `<p style="margin:6px 0 0;font-size:12px;color:#6b7066;">${esc(note)}</p>`;
     html += sectionSpacer();
   }
 
@@ -3070,8 +3177,9 @@ function resetDashboard() {
   document.getElementById('parse-status').textContent    = '';
   document.getElementById('progress-bar').style.display  = 'none';
   document.getElementById('file-input').value            = '';
-  ['filter-source-group','filter-campaign-group','filter-device-group','filter-outlier-group']
+  ['filter-source-group','filter-campaign-group','filter-device-group','filter-outlier-group','filter-custom-group']
     .forEach(id => document.getElementById(id).style.display='none');
+  ['range-start','range-end'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   allRows=[]; filteredRows=[]; activePgCols=[];
   outlierThreshold = Infinity; outlierExcluded = 0;
   currentFingerprint = null;

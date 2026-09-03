@@ -116,6 +116,7 @@ Rules that must hold:
 - Files with the same `signature` are date shards → concatenated (`refreshGA4Table`). Files with different signatures are alternative views of the same events → **never summed**.
 - `ga4TotalsTable()` (most submits, prefer `hasTime`) feeds coverage; `ga4ViewsTable()` feeds `ga4AutoViews`; `ga4TableFor(keys)` picks the table for a breakdown.
 - Coverage denominators = `allRows` filtered by period only, restricted to the GA4 export's month range. Never apply Source/Campaign/Device/outlier filters to them.
+- Custom ranges: EN rows filter by exact day; monthly GA4 tables compare whole overlapping months (`getCoverage` returns `wholeMonths: true` when the range cuts a month) and periods the range cuts into (`d.partial`) are starred with blank GA4 cells unless the GA4 table is day-level (`table.daily`, from `Date`/`Nth day` exports); a quarter missing whole months (`d.incomplete`) is starred but keeps GA4 figures via `clipRange`.
 - `(not set)` → `null`; `(other)` stays a string label. First Step is only set on the first step of a session, so followup rows are legitimately `(not set)`.
 - Step/total/submission columns are read as GA4 **sum metrics** only (`stepSum/count` = average). If one appears left of the metric block (registered as a dimension) it is ignored and reported.
 
@@ -146,7 +147,8 @@ Rules that must hold:
 | `finishGA4Ingest(warnings)` | Recompute → rebuild GA4 UI → re-render → save; switches correction to measured the first time |
 | `recomputeGA4State(warnings)` | Sets all `F.hasGA4*` flags, rebuilds `ga4AutoViews`, builds `ga4Meta` |
 | `ga4TotalsTable()` / `ga4ViewsTable()` / `ga4TableFor(keys)` / `ga4StepTable()` | Table selection (see rules above) |
-| `currentPeriodKey()` / `periodMatches(r, pk)` / `ga4RowsFor(table, pk, kind)` / `ga4GroupBy(rows, keyFn)` | Period-aware queries |
+| `currentPeriodKey()` / `periodMatches(r, pk)` / `ga4RowsFor(table, pk, kind)` / `ga4GroupBy(rows, keyFn)` | Period-aware queries. A period key is `null`, `'YYYY-MM'`, `'YYYY-Qn'`, or a range object from `getRange()` (`{start, end, months, partial, label}`); rows with a `date` match by day, monthly GA4 rows by overlapping month |
+| `getRange()` / `enDateBounds()` / `clipRange(range, key)` / `quarterMonths(q)` / `periodGA4Figures(d)` | Custom date range (Period = `custom`). `periodGA4Figures` gives a period row its coverage/views: partial periods only from day-level GA4 tables (`table.daily`), otherwise blank; `PARTIAL_NOTE` is the shared footnote |
 | `getCoverage(pk)` | `{ga4, en, ratio, wholeExport}` or `null` |
 | `getViewsForPeriod(p)` / `allViewsTotal()` | Manual `ga4Views` wins over `ga4AutoViews`; quarters sum months |
 | `ga4ViewsForSelection(pk)` / `visitorRate(count, views)` | Ladder page views for the current selection and the `% of visitors` rate used by the Opt-Ins Taken and First Step cards and summary tables |

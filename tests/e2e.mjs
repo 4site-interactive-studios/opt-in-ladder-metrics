@@ -271,6 +271,67 @@ console.log('\n4. Alternative-view tabs and date shards');
   await page.close();
 }
 
+console.log('\n6. Custom date range');
+{
+  const en = readFileSync(join(FX, 'en-transactions.csv'), 'utf8').trim().split('\n').slice(1).map(l => l.split(','));   // cols 0,1 precede any quoted field
+  const S1 = '2025-02-10', E1 = '2025-03-20';
+  const enIn = en.filter(r => r[1] >= S1 && r[1] <= E1);
+  const enInKept = enIn.filter(r => r[0] !== 'SOUTLIER01');                 // outlier toggle is on by default
+  const expParticipants = new Set(enInKept.map(r => r[0])).size, expOptins = enInKept.length;
+  const covExp = ((expected.ga4SubmitsByMonth['2025-02'] + expected.ga4SubmitsByMonth['2025-03']) / (expected.enRowsByMonth['2025-02'] + expected.enRowsByMonth['2025-03']) * 100).toFixed(1) + '%';
+  const setRange = async (page, a, b) => { await page.fill('#range-start', a); await page.dispatchEvent('#range-start', 'change'); await page.fill('#range-end', b); await page.dispatchEvent('#range-end', 'change'); await page.waitForTimeout(150); };
+  const { page, errors } = await newPage();
+  await loadEN(page, ['ga4-basic.csv', 'ga4-views.csv']);
+  await page.waitForFunction(() => ga4Tables.length === 2);
+  const allTimeOptins = (await kpi(page, 'Total Opt-Ins')).value;
+  await page.selectOption('#filter-period', 'custom'); await page.waitForTimeout(100);
+  check('custom: inputs shown, defaulted to the data bounds', await page.evaluate(() => { const s = document.getElementById('range-start'), e = document.getElementById('range-end'); return document.getElementById('filter-custom-group').style.display === 'flex' && s.value === s.min && e.value === e.max && s.min < e.max; }));
+  check('custom: default range equals All Time', (await kpi(page, 'Total Opt-Ins')).value === allTimeOptins);
+  await setRange(page, S1, E1);
+  const kU = await kpi(page, 'Unique Participants'), kT = await kpi(page, 'Total Opt-Ins');
+  check('custom: EN filtered by exact days', kU.value === expParticipants.toLocaleString('en-US') && kT.value === expOptins.toLocaleString('en-US'), JSON.stringify({ kU, kT, expParticipants, expOptins }));
+  check('custom: date bar shows the exact range', (await page.textContent('#date-range-bar')).includes('Feb 10, 2025 – Mar 20, 2025'));
+  const rows = await page.$$eval('#period-table-body tr', trs => trs.map(tr => [...tr.children].map(td => td.textContent.trim())));
+  check('custom: partial months starred with blank GA4 cells (monthly export)', rows[0][0] === 'Feb 2025*' && rows[1][0] === 'Mar 2025*' && rows[2][0] === '2025-Q1 Total*' && rows[0].slice(6).every(c => c === '—') && rows[2].slice(6).every(c => c === '—'), JSON.stringify(rows));
+  check('custom: partial note shown', (await page.textContent('#period-table-note')).includes('Partial period'));
+  const kc = await kpi(page, 'GA4 Coverage');
+  check('custom: coverage compares whole months and says so', kc.value === covExp && kc.sub.includes('whole months'), JSON.stringify({ kc, covExp }));
+  check('custom: GA4 scope badge names the whole-month caveat', (await page.textContent('#ga4-scope-badge')).includes('GA4 by whole month (Feb 2025 – Mar 2025)'), await page.textContent('#ga4-scope-badge'));
+  const shortH = await page.evaluate(() => buildShortSummaryHTML()), fullH = await page.evaluate(() => buildExecutiveSummaryHTML());
+  check('custom: summaries carry the exact range and the partial note', shortH.includes('<strong>Date Range:</strong> Feb 10, 2025 – Mar 20, 2025') && fullH.includes('Feb 10, 2025 – Mar 20, 2025') && shortH.includes('Partial period') && fullH.includes('Partial period'));
+  await setRange(page, E1, S1);
+  check('custom: reversed dates are swapped', (await kpi(page, 'Total Opt-Ins')).value === expOptins.toLocaleString('en-US'));
+  await setRange(page, '2025-02-01', '2025-03-31');
+  const rows2 = await page.$$eval('#period-table-body tr', trs => trs.map(tr => [...tr.children].map(td => td.textContent.trim())));
+  const kc2 = await kpi(page, 'GA4 Coverage');
+  check('custom: month-aligned range → months unstarred, incomplete quarter starred but with GA4 figures, no caveat', rows2[0][0] === 'Feb 2025' && rows2[1][0] === 'Mar 2025' && rows2[2][0] === '2025-Q1 Total*' && rows2[2][6] !== '—' && rows2[2][7] === covExp && kc2.value === covExp && !kc2.sub.includes('whole months') && !(await page.textContent('#ga4-scope-badge')).includes('whole month'), JSON.stringify({ rows2, kc2 }));
+  await page.selectOption('#filter-period', 'all'); await page.waitForTimeout(100);
+  check('custom: back to All Time hides inputs and restores totals', await page.evaluate(() => document.getElementById('filter-custom-group').style.display === 'none') && (await kpi(page, 'Total Opt-Ins')).value === allTimeOptins);
+  check('no page errors', errors.length === 0, errors.join(' | '));
+  await page.close();
+}
+{
+  // A GA4 export with the Date dimension follows the range exactly
+  const lines = readFileSync(join(FX, 'ga4-date.csv'), 'utf8').trim().split('\n');
+  const hdr = lines[0].split(','), di = hdr.indexOf('Date'), ci = hdr.indexOf('Event count');
+  const ga4In = lines.slice(1).map(l => l.split(',')).filter(r => r[di] >= '20250210' && r[di] <= '20250320').reduce((a, r) => a + Number(r[ci]), 0);
+  const enAll = readFileSync(join(FX, 'en-transactions.csv'), 'utf8').trim().split('\n').slice(1).map(l => l.split(','));
+  const enIn = enAll.filter(r => r[1] >= '2025-02-10' && r[1] <= '2025-03-20').length;    // coverage denominators include outliers
+  const { page, errors } = await newPage();
+  await loadEN(page, ['ga4-date.csv']);
+  check('daily GA4 table flagged daily', await page.evaluate(() => ga4Tables[0].daily === true));
+  await page.selectOption('#filter-period', 'custom'); await page.waitForTimeout(100);
+  await page.fill('#range-start', '2025-02-10'); await page.dispatchEvent('#range-start', 'change');
+  await page.fill('#range-end', '2025-03-20'); await page.dispatchEvent('#range-end', 'change'); await page.waitForTimeout(150);
+  const kc = await kpi(page, 'GA4 Coverage');
+  check('custom + daily GA4: exact coverage, no caveat', kc.value === (ga4In / enIn * 100).toFixed(1) + '%' && !kc.sub.includes('whole months'), JSON.stringify({ kc, ga4In, enIn }));
+  const rows = await page.$$eval('#period-table-body tr', trs => trs.map(tr => [...tr.children].map(td => td.textContent.trim())));
+  check('custom + daily GA4: partial rows keep GA4 submits', rows[0][0] === 'Feb 2025*' && rows[0][6] !== '—' && rows[2][0] === '2025-Q1 Total*' && rows[2][6] !== '—', JSON.stringify(rows));
+  check('custom + daily GA4: badge without caveat', !(await page.textContent('#ga4-scope-badge')).includes('whole month'));
+  check('no page errors', errors.length === 0, errors.join(' | '));
+  await page.close();
+}
+
 console.log('\n5. Upload-screen staging, bad file, dashboard drop');
 {
   const { page, errors } = await newPage();

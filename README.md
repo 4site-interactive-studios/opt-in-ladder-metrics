@@ -173,12 +173,18 @@ Two clipboard exports sit in the top bar. Both copy rich text (paste into Google
 
 | Filter | Always shown | Condition |
 |--------|-------------|-----------|
-| Period | ✅ | Monthly or quarterly. Also filters GA4 data that carries a time column |
+| Period | ✅ | All Time, a quarter, a month, or **Custom range…** with From/To date pickers. Also filters GA4 data that carries a time column |
 | Source | If External Reference 2 present | utm_medium values (EN data only) |
 | Campaign | If Campaign ID present | Campaign ID values (EN data only) |
 | Device | If Campaign Data 32 present | Desktop / Mobile / Tablet (EN data only) |
 | View | ✅ | Monthly / Quarterly granularity |
 | Exclude Outliers | If outliers detected | Toggle with threshold badge (EN data only; coverage denominators always include outliers) |
+
+### Custom date ranges
+
+Choose **Custom range…** in the Period filter to get From and To date pickers, bounded to the dates in the EN export and defaulting to the full span (reversed dates are swapped). Engaging Networks rows are filtered by exact day, and the date bar, headers and both summaries show the exact range.
+
+GA4 exports are usually monthly, so when the range cuts into a month the GA4 side can only be compared on whole months: the GA4 Coverage KPI says "whole months", the GA4 block badge reads "GA4 by whole month (Feb 2025 – Mar 2025)", and periods the range cuts into are starred in the Period Breakdown with their GA4 columns left blank, with a footnote explaining why. A quarter that is missing whole months is starred too but keeps its GA4 figures, since those come from whole months. Export the GA4 tabs with the `Date` dimension instead of `Year` + `Month` and everything follows the range to the day.
 
 ---
 
