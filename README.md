@@ -82,6 +82,7 @@ Leading `#` metadata lines, the `Grand total` row (GA4 puts its label in an extr
 
 - **GA4 Coverage** KPI and `GA4 Submits` / `Coverage` columns in the Period Breakdown: tracked submits ÷ EN submissions. EN submissions here are filtered by period only, never by Source, Campaign, Device or the outlier toggle, and only months inside the GA4 export's range count. Coverage above 100% is flagged red — it means the exploration is letting extra events through (test traffic, an unfiltered tab) or the EN export is filtered.
 - **Google Analytics 4 · Ladder Events** block with Ladder Entry Pages, Entry Page Type, Opt-Ins Taken, First Step Shown, and Ladder Position Averages cards. Each card appears only when its columns are present.
+- **% of Visitors** on Opt-Ins Taken and First Step Shown (cards and summary tables) once ladder views are loaded: submits (or starters) ÷ GA4 ladder page views for the selected period. Both sides come from GA4, so the ratio needs no ad-blocker correction.
 - **Auto-filled views**: when the export contains `page_view` rows with a time column, the monthly view inputs are pre-filled (shown as `auto: 12,400` placeholders) and the `GA4 Views` / `CVR` columns appear. Typing a value overrides that month; clearing it returns to the imported figure.
 - **Measured ad-blocker correction**: once GA4 submits are loaded, the correction switches to *Measured (GA4 coverage)* — adjusted views = views ÷ coverage, clamped to at most ×5. *Manual %* keeps the slider behaviour. The badge shows the implied undercount.
 - **Copy Summary** gains GA4 Tracking Coverage, Ladder Entry Pages, Entry Page Type, Opt-Ins Taken, First Step Shown and Ladder Position Averages sections, plus `GA4 Submits` / `Coverage` columns in Performance by Period.
@@ -137,7 +138,7 @@ Bar chart showing how many participants completed 1, 2, 3… 10+ opt-in steps. F
 ### Google Analytics 4 · Ladder Events *(requires GA4 export)*
 - **Ladder Entry Pages** — top 12 parent pages by tracked submits (`parent_page_name`, falling back to the page ID)
 - **Entry Page Type** — Donation, Advocacy, Survey… as reported by ENgrid
-- **Opt-Ins Taken** — tracked submits per opt-in step shown
+- **Opt-Ins Taken** — tracked submits per opt-in step shown, with % of ladder visitors when views are loaded
 - **First Step Shown** — which opt-in entrants saw first, with GA4 starters and GA4 depth ratio
 - **Ladder Position Averages** — average position at submit, configured ladder length, average submissions per session
 

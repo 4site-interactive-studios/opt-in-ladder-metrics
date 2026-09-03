@@ -149,6 +149,7 @@ Rules that must hold:
 | `currentPeriodKey()` / `periodMatches(r, pk)` / `ga4RowsFor(table, pk, kind)` / `ga4GroupBy(rows, keyFn)` | Period-aware queries |
 | `getCoverage(pk)` | `{ga4, en, ratio, wholeExport}` or `null` |
 | `getViewsForPeriod(p)` / `allViewsTotal()` | Manual `ga4Views` wins over `ga4AutoViews`; quarters sum months |
+| `ga4ViewsForSelection(pk)` / `visitorRate(count, views)` | Ladder page views for the current selection and the `% of visitors` rate used by the Opt-Ins Taken and First Step cards and summary tables |
 | `adblockMode()` / `getAdjustedViews(raw, p)` / `adjHeaderSuffix()` / `impliedUpliftLabel(pk)` / `updateAdblockModeUI()` / `onAdblockModeChange()` | Ad-blocker correction: `off` / `manual` (slider) / `measured` (views ÷ coverage, ratio clamped to [0.2, 1]) |
 | `buildGA4Meta(warnings)` / `renderGA4ImportReport()` | Import report inside the GA4 Data panel |
 | `buildGA4SectionsShell()` / `renderGA4Sections()` | The GA4 block (Ladder Entry Pages, Entry Page Type, Opt-Ins Taken, First Step Shown, Ladder Position Averages) |
@@ -170,7 +171,7 @@ Rules that must hold:
 | `renderDeviceBrowserSection()` | Device Type bar, Browser hbar, Brand hbar, Device-over-time stacked bar |
 | `renderGA4Sections()` | GA4 hbars, Entry Page Type chart (`chart-ga4-parent-type`), step pills, scope badges |
 | `dc(id)` | Destroy Chart.js instance by key before re-render |
-| `hbar(containerId, entries, color)` | Renders a custom HTML horizontal bar list (labels are escaped) |
+| `hbar(containerId, entries, color, opts)` | Renders a custom HTML horizontal bar list (labels are escaped); `opts.extra(label, count)` adds a trailing cell, used for `% of visitors` |
 
 ### Table renderers
 | Function | Purpose |

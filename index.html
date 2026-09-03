@@ -358,6 +358,9 @@ th.ga4-col { color: var(--bark) !important; }
 .ga4-filter-note { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--mid); background: var(--cream); border: 1px solid rgba(0,0,0,0.08); border-radius: 4px; padding: 6px 10px; margin-bottom: 14px; }
 .ga4-filter-note.active { border-left: 3px solid var(--amber); color: var(--ink); }
 .hbar-list.wide .hbar-label { min-width: 200px; max-width: 45%; }
+.hbar-extra { color: var(--bark); min-width: 58px; }
+.hbar-legend { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--mid); text-align: right; margin: 6px 0 2px; letter-spacing: 0.04em; }
+.hbar-legend:empty { display: none; }
 .ga4-stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
 .ga4-stat-pill { flex: 1; min-width: 140px; background: var(--paper); border: 1px solid rgba(0,0,0,0.08); border-radius: 6px; padding: 12px 14px; }
 .ga4-stat-value { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 700; color: var(--forest); line-height: 1; }
@@ -1315,6 +1318,9 @@ function getViewsForPeriod(p) {
   const months = [...new Set([...Object.keys(ga4Views), ...Object.keys(ga4AutoViews)])].filter(m => quarterOf(m) === p);
   return months.length ? months.reduce((s, m) => s + (ga4Views[m] ?? ga4AutoViews[m]), 0) : null;
 }
+// GA4 ladder page views for the current selection — the "visitors" denominator for per-step rates
+function ga4ViewsForSelection(pk) { return hasAnyGA4Data() ? (pk ? getViewsForPeriod(pk) : allViewsTotal()) : null; }
+function visitorRate(count, views) { return views ? ((count / views) * 100).toFixed(2) + '%' : null; }
 function allViewsTotal() {
   const months = [...new Set([...Object.keys(ga4Views), ...Object.keys(ga4AutoViews)])];
   return months.length ? months.reduce((s, m) => s + (ga4Views[m] ?? ga4AutoViews[m]), 0) : null;
@@ -1431,12 +1437,14 @@ function buildGA4SectionsShell() {
       <div class="chart-card">
         <div class="chart-title">Opt-Ins Taken <span class="ga4-scope-badge" data-scope="label"></span></div>
         <div class="chart-subtitle">Tracked submissions by the opt-in step shown (GA4 opt_in_label). Counts every submit, checked or not — PG chips show accepted enrolments</div>
+        <div class="hbar-legend" id="ga4-label-legend"></div>
         <div class="hbar-list wide" id="hbar-ga4-label"></div>
       </div>`);
   if (F.hasGA4FirstStep) cards.push(`
       <div class="chart-card">
         <div class="chart-title">First Step Shown <span class="ga4-scope-badge" data-scope="first"></span></div>
         <div class="chart-subtitle" id="ga4-first-step-sub">Which opt-in entrants saw first — a later entry point means the earlier opt-ins were already held</div>
+        <div class="hbar-legend" id="ga4-first-legend"></div>
         <div class="hbar-list wide" id="hbar-ga4-first-step"></div>
       </div>`);
   if (F.hasGA4StepMetric) cards.push(`
@@ -1512,10 +1520,14 @@ function renderGA4Sections() {
                   y: { grid: { display: false }, ticks: { font: { family: 'DM Sans', size: 12 }, color: '#1c1c1a' } } } }
     });
   }
+  const views = ga4ViewsForSelection(pk);
+  const visitorOpts = views ? { extra: (l, c) => visitorRate(c, views), extraTitle: `Share of ${fmt(views)} GA4 ladder page views (visitors) in this selection` } : {};
   if (F.hasGA4Label) {
     const L = ga4TableFor(['optinLabel', 'optinId']);
     setScope(L, document.querySelector('[data-scope="label"]'));
-    hbar('hbar-ga4-label', ga4GroupBy(ga4RowsFor(L, pk), r => r.optinLabel || (r.optinId ? `Opt-in #${r.optinId}` : null)), PAL.sage);
+    hbar('hbar-ga4-label', ga4GroupBy(ga4RowsFor(L, pk), r => r.optinLabel || (r.optinId ? `Opt-in #${r.optinId}` : null)), PAL.sage, visitorOpts);
+    const lg = document.getElementById('ga4-label-legend');
+    if (lg) lg.textContent = views ? `submits · share of submits · % of ${fmt(views)} ladder visitors` : '';
   }
   if (F.hasGA4FirstStep) {
     const S = ga4TableFor(['firstStepName', 'firstStepId']);
@@ -1523,7 +1535,9 @@ function renderGA4Sections() {
     const rows = ga4RowsFor(S, pk);
     const starters = rows.filter(r => r.firstStepName != null || r.firstStepId != null);
     const nStart = starters.reduce((a, r) => a + r.count, 0), nAll = rows.reduce((a, r) => a + r.count, 0);
-    hbar('hbar-ga4-first-step', ga4GroupBy(starters, r => r.firstStepName || `Opt-in #${r.firstStepId}`), PAL.fern);
+    hbar('hbar-ga4-first-step', ga4GroupBy(starters, r => r.firstStepName || `Opt-in #${r.firstStepId}`), PAL.fern, visitorOpts);
+    const lgf = document.getElementById('ga4-first-legend');
+    if (lgf) lgf.textContent = views ? `starters · share of starters · % of ${fmt(views)} ladder visitors` : '';
     const sub = document.getElementById('ga4-first-step-sub');
     if (sub) sub.textContent = nStart
       ? `GA4 ladder starters: ${fmt(nStart)} · GA4 depth ratio: ${(nAll / nStart).toFixed(2)}× (tracked submits ÷ starters)`
@@ -1570,9 +1584,9 @@ function ga4SummaryData(pk) {
   const starters = startRows.reduce((a, r) => a + r.count, 0);
   const sAll = sRows.reduce((a, r) => a + r.count, 0);
   const firstSteps = ga4GroupBy(startRows, r => r.firstStepName || `Opt-in #${r.firstStepId}`);
-  const views = hasAnyGA4Data() ? (pk ? getViewsForPeriod(pk) : allViewsTotal()) : null;
+  const views = ga4ViewsForSelection(pk);
   return {
-    submits, cov, wholeExport: !!(T && !T.hasTime),
+    submits, cov, views, wholeExport: !!(T && !T.hasTime),
     starters, ga4Depth: starters ? (sAll / starters).toFixed(2) : null,
     startRate: (starters && views) ? ((starters / views) * 100).toFixed(2) : null,
     impliedUplift: cov ? impliedUpliftLabel(pk) : null,
@@ -2014,18 +2028,20 @@ const BASE = {
 
 function dc(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
 
-function hbar(containerId, entries, color) {
+function hbar(containerId, entries, color, opts = {}) {
   const el = document.getElementById(containerId); if(!el) return;
   const total = entries.reduce((a,[,v])=>a+v,0);
-  const max   = entries.length>0?entries[0][1]:1;
-  el.innerHTML = entries.map(([label,count]) =>
-    `<div class="hbar-item">
+  const max   = Math.max(...entries.map(([,v])=>v), 1);
+  el.innerHTML = entries.map(([label,count]) => {
+    const extra = opts.extra ? opts.extra(label, count) : null;
+    return `<div class="hbar-item">
       <span class="hbar-label" title="${esc(label)}">${esc(label)}</span>
       <div class="hbar-track"><div class="hbar-fill" style="width:${(count/max)*100}%;background:${color}"></div></div>
       <span class="hbar-count">${fmt(count)}</span>
       <span class="hbar-pct">${total>0?((count/total)*100).toFixed(1):0}%</span>
-    </div>`
-  ).join('');
+      ${extra != null ? `<span class="hbar-pct hbar-extra" title="${esc(opts.extraTitle || '')}">${extra}</span>` : ''}
+    </div>`;
+  }).join('');
 }
 
 function renderCharts() {
@@ -2613,6 +2629,7 @@ function buildExecutiveSummaryHTML() {
     html += sectionSpacer();
 
     const share = (c, tot) => `${tot > 0 ? ((c / tot) * 100).toFixed(1) : 0}%`;
+    const visitorsNote = v => `<p style="margin:6px 0 0;font-size:12px;color:#6b7066;">% of Visitors = count ÷ ${fmt(v)} GA4 ladder page views in this range</p>`;
     if (g.pages.length) {
       const tot = g.pages.reduce((a, p) => a + p.count, 0);
       html += sectionHeading('Ladder Entry Pages (GA4)');
@@ -2628,13 +2645,17 @@ function buildExecutiveSummaryHTML() {
     if (g.labels.length) {
       const tot = g.labels.reduce((a, [, v]) => a + v, 0);
       html += sectionHeading('Opt-Ins Taken (GA4)');
-      html += summaryTable(['Opt-In Step', 'Submits', 'Share'], g.labels.slice(0, 8).map(([l, c]) => [esc(l), fmt(c), share(c, tot)]));
+      html += summaryTable(['Opt-In Step', 'Submits', 'Share', ...(g.views ? ['% of Visitors'] : [])],
+        g.labels.slice(0, 8).map(([l, c]) => [esc(l), fmt(c), share(c, tot), ...(g.views ? [visitorRate(c, g.views)] : [])]));
+      if (g.views) html += visitorsNote(g.views);
       html += sectionSpacer();
     }
     if (g.firstSteps.length) {
       const tot = g.firstSteps.reduce((a, [, v]) => a + v, 0);
       html += sectionHeading('First Step Shown (GA4)');
-      html += summaryTable(['First Step', 'Starters', 'Share'], g.firstSteps.slice(0, 5).map(([l, c]) => [esc(l), fmt(c), share(c, tot)]));
+      html += summaryTable(['First Step', 'Starters', 'Share', ...(g.views ? ['% of Visitors'] : [])],
+        g.firstSteps.slice(0, 5).map(([l, c]) => [esc(l), fmt(c), share(c, tot), ...(g.views ? [visitorRate(c, g.views)] : [])]));
+      if (g.views) html += visitorsNote(g.views);
       html += sectionSpacer();
     }
     if (g.stepStats && (g.stepStats.pos != null || g.stepStats.len != null || g.stepStats.subs != null)) {
@@ -2785,7 +2806,8 @@ function buildExecutiveSummaryPlaintext() {
     if (g.labels.length) {
       const tot = g.labels.reduce((a,[,v])=>a+v,0);
       lines.push('', 'OPT-INS TAKEN (GA4)');
-      g.labels.slice(0,5).forEach(([l,c]) => lines.push(`  ${String(l).slice(0,34).padEnd(34)}${fmt(c).padStart(7)}  (${tot>0?((c/tot)*100).toFixed(1):0}%)`));
+      g.labels.slice(0,5).forEach(([l,c]) => lines.push(`  ${String(l).slice(0,34).padEnd(34)}${fmt(c).padStart(7)}  (${tot>0?((c/tot)*100).toFixed(1):0}%)${g.views ? `  ${visitorRate(c, g.views)} of visitors` : ''}`));
+      if (g.views) lines.push(`  (% of visitors = submits ÷ ${fmt(g.views)} GA4 ladder page views)`);
     }
   }
 
