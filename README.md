@@ -55,7 +55,7 @@ Use one end date for both exports, usually the last day of the most recent full 
 4. Click next, check the summary, and click **Export Supporters**
 5. Click **Go to the Job Monitor** and download the file when the job finishes
 
-Don't open and resave the CSV in Excel. Excel rewrites `Campaign Date` from `2025-01-02` to `1/2/2025`, and the dashboard then can't place any row in a month. Open a copy if you want to look at it.
+Try not to open and resave the CSV in Excel. Excel rewrites `Campaign Date` from `2025-01-02` to `1/2/2025` (or `02/01/2025` outside the US). The dashboard reads both, but a row whose date it still can't read counts toward All Time and is missing from every month, quarter and custom range; the top bar shows how many. Open a copy if you want to look at it.
 
 #### Set up the saved query (first run only)
 
@@ -103,7 +103,7 @@ Set the **Period** filter to the period you're reporting on. Then use **Copy Sho
 | Column | Required | Notes |
 |--------|----------|-------|
 | `Supporter ID` | ✅ | Used to deduplicate participants |
-| `Campaign Date` | ✅ | Format: `YYYY-MM-DD` |
+| `Campaign Date` | ✅ | `YYYY-MM-DD` as Engaging Networks exports it; Excel's `M/D/YYYY` and `DD/MM/YYYY` also read |
 | `External Reference 2` | Optional | utm_medium — unlocks Traffic Source chart |
 | `TidyContact Address Record` | Optional | Unlocks Source Page Type chart |
 | `Campaign ID` | Optional | Unlocks Campaign Breakdown table |

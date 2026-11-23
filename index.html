@@ -743,17 +743,12 @@ function processData(data, fileName) {
   });
 
   // ── Parse rows ──
+  const dayFirst = enDatesDayFirst(data.map(r => r['Campaign Date']));
   allRows = data.map(r => {
-    const dateStr = (r['Campaign Date']||'').trim();
-    let month = 'Unknown', quarter = 'Unknown', year = 'Unknown';
-    if (dateStr) {
-      const parts = dateStr.split('-');
-      if (parts.length === 3) {
-        year    = parts[0];
-        month   = `${parts[0]}-${parts[1]}`;
-        quarter = `${parts[0]}-Q${Math.ceil(parseInt(parts[1])/3)}`;
-      }
-    }
+    const date    = parseENDate(r['Campaign Date'], dayFirst);
+    const month   = date ? date.slice(0, 7) : 'Unknown';
+    const quarter = date ? quarterOf(month) : 'Unknown';
+    const year    = date ? date.slice(0, 4) : 'Unknown';
 
     let medium = null;
     if (F.hasER2) {
@@ -782,7 +777,7 @@ function processData(data, fileName) {
     let cd32 = null;
     if (F.hasCD32) cd32 = parseCD32((r['Campaign Data 32']||'').trim());
 
-    return { supporterID:(r['Supporter ID']||'').trim(), date:dateStr, month, quarter, year, medium, srcType, campaignID, pgProfile, cd32 };
+    return { supporterID:(r['Supporter ID']||'').trim(), date, month, quarter, year, medium, srcType, campaignID, pgProfile, cd32 };
   });
 
   populateFilters();
@@ -801,8 +796,41 @@ function processData(data, fileName) {
   // ── GA4 exports dropped together with the EN file ──
   if (pendingGA4Files.length) importGA4Files(pendingGA4Files.splice(0));
 
+  const undated = allRows.filter(r => !r.date).length;
   document.getElementById('top-bar-meta').textContent =
-    `${allRows.length.toLocaleString()} submissions · ${[...new Set(allRows.map(r=>r.supporterID))].length.toLocaleString()} supporters`;
+    `${allRows.length.toLocaleString()} submissions · ${[...new Set(allRows.map(r=>r.supporterID))].length.toLocaleString()} supporters` +
+    (undated ? ` · ${undated.toLocaleString()} without a readable Campaign Date` : '');
+  if (undated) showToast(`${undated.toLocaleString()} row${undated === 1 ? ' has' : 's have'} no readable Campaign Date: counted in All Time, missing from every month`);
+}
+
+// Campaign Date → 'YYYY-MM-DD', or null when unreadable. Engaging Networks exports ISO dates; a CSV
+// resaved in Excel comes back as M/D/YYYY (US) or D/M/YYYY (most other locales), sometimes with a time.
+function parseENDate(v, dayFirst) {
+  const s = String(v || '').trim().split(/[ T]/)[0];
+  let y, m, d, p;
+  if ((p = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/))) [, y, m, d] = p;
+  else if ((p = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4}|\d{2})$/))) {
+    [, m, d, y] = p;
+    if (dayFirst) [m, d] = [d, m];
+    if (y.length === 2) y = '20' + y;
+  } else return null;
+  y = +y; m = +m; d = +d;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+// Day-first when some non-ISO date only works as D/M (first part > 12) and none only as M/D.
+// A day-first file still reads as M/D if every date falls on the 1st to 12th of its month.
+function enDatesDayFirst(values) {
+  let dm = false, md = false;
+  for (const v of values) {
+    const p = String(v || '').trim().match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.]\d{2,4}\b/);
+    if (!p) continue;
+    if (+p[1] > 12) dm = true;
+    if (+p[2] > 12) md = true;
+  }
+  return dm && !md;
 }
 
 // ════════════════════════════════════════════════

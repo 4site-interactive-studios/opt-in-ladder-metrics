@@ -130,6 +130,7 @@ Rules that must hold:
 | `handleDroppedFiles(files, {onDashboard})` | Sniffs each file (`sniffFileKind`) and routes: EN → `processFile`, GA4 → `importGA4Files` or `pendingGA4Files` |
 | `processFile(file)` | PapaParse entry point; passes `file.name` to `processData` |
 | `processData(data, fileName)` | Feature detection, row parsing, builds fingerprint, triggers cache check, then imports staged GA4 files |
+| `parseENDate(v, dayFirst)` / `enDatesDayFirst(values)` | `Campaign Date` → `YYYY-MM-DD` or `null`. Accepts ISO plus Excel's `M/D/YYYY` and `DD/MM/YYYY` (with or without a time); day-first is decided once per file. Rows with `null` get month/quarter `'Unknown'`, and `processData` reports their count in the top bar and a toast |
 | `parseCD32(v)` | Parses the `Campaign Data 32` string into `{deviceType, browserFamily, deviceBrand, os}` |
 | `detectOutlierThreshold(rows)` | Gap-weighted scoring algorithm to find natural depth cutoff |
 | `setupOutlierToggle(rows)` | Runs detection, sets `outlierThreshold`, shows/hides toggle |

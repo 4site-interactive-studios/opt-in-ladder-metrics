@@ -42,8 +42,8 @@ async function newPage() {
   await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; }' });
   return { page, errors };
 }
-async function loadEN(page, extra = []) {
-  await page.setInputFiles('#file-input', [join(FX, 'en-transactions.csv'), ...extra.map(f => join(FX, f))]);
+async function loadEN(page, extra = [], enFile = 'en-transactions.csv') {
+  await page.setInputFiles('#file-input', [join(FX, enFile), ...extra.map(f => join(FX, f))]);
   await page.waitForSelector('#dashboard', { state: 'visible' });
   await page.waitForFunction(() => allRows.length > 0);
   if (extra.length) await page.waitForFunction(() => pendingGA4Files.length === 0 && ga4Tables.length > 0);
@@ -77,6 +77,7 @@ console.log('\n1. EN only');
   check('6 base table headers', (await headers(page)).length === 6, (await headers(page)).join('|'));
   check('KPI count 6', (await page.$$('.kpi-card')).length === 6);
   check('rows parsed', await page.evaluate(() => allRows.length) === expected.enRows);
+  check('ISO dates: no date warning', !(await page.textContent('#top-bar-meta')).includes('readable'));
   check('mode radios hidden', await page.evaluate(() => !document.getElementById('adblock-mode-radios').classList.contains('visible')));
   check('import report empty', await page.evaluate(() => document.getElementById('ga4-import-report').innerHTML === ''));
   const shortEN = await page.evaluate(() => buildShortSummaryHTML());
@@ -348,6 +349,28 @@ console.log('\n5. Upload-screen staging, bad file, dashboard drop');
   await page.waitForTimeout(100);
   check('EN dropped on dashboard → toast, state unchanged', await page.evaluate(() => allRows.length > 0 && [...document.querySelectorAll('.toast')].some(t => /New File/.test(t.textContent))));
   check('no page errors', errors.length === 0, errors.join(' | '));
+  await page.close();
+}
+
+console.log('\n7. Campaign Date formats');
+{
+  const monthCounts = page => page.evaluate(() => allRows.reduce((a, r) => (a[r.month] = (a[r.month] || 0) + 1, a), {}));
+  const sorted = o => JSON.stringify(Object.entries(o).sort());
+  for (const [file, label] of [['en-excel-mdy.csv', 'Excel M/D/YYYY'], ['en-excel-dmy.csv', 'Excel DD/MM/YYYY + time']]) {
+    const { page, errors } = await newPage();
+    await loadEN(page, [], file);
+    const counts = await monthCounts(page);
+    check(`${label}: same monthly rows as the ISO export`, sorted(counts) === sorted(expected.enRowsByMonth), sorted(counts));
+    check(`${label}: dates normalised to YYYY-MM-DD`, await page.evaluate(() => allRows.every(r => /^\d{4}-\d{2}-\d{2}$/.test(r.date))));
+    check(`no page errors (${file})`, errors.length === 0, errors.join(' | '));
+    await page.close();
+  }
+  const { page, errors } = await newPage();
+  await loadEN(page, [], 'en-bad-dates.csv');
+  const counts = await monthCounts(page), meta = await page.textContent('#top-bar-meta');
+  check('bad dates: counted as Unknown, months untouched', counts.Unknown === expected.badDates && sorted({ ...counts, Unknown: undefined }) === sorted({ ...expected.enRowsByMonth, Unknown: undefined }), sorted(counts));
+  check('bad dates: top bar and toast say how many', meta.includes(`${expected.badDates} without a readable Campaign Date`) && await page.evaluate(() => [...document.querySelectorAll('.toast')].some(t => /readable Campaign Date/.test(t.textContent))), meta);
+  check('no page errors (en-bad-dates.csv)', errors.length === 0, errors.join(' | '));
   await page.close();
 }
 

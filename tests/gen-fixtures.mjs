@@ -68,6 +68,13 @@ for (let k = 0; k < 15; k++) enRows.push(['SOUTLIER01', `2025-03-${String(1 + k)
 enRowsByMonth['2025-03'] += 15; enParticipantsByMonth['2025-03'] += 1;
 writeFileSync(join(out, 'en-transactions.csv'), toCSV(enHeader, enRows));
 
+// Campaign Date as Excel writes it back on resave (US M/D/YYYY; DD/MM/YYYY with a time elsewhere), plus unreadable dates
+const reDate = fmt => enRows.map(r => { const [y, m, d] = r[1].split('-'); return [r[0], fmt(y, m, d), ...r.slice(2)]; });
+writeFileSync(join(out, 'en-excel-mdy.csv'), toCSV(enHeader, reDate((y, m, d) => `${+m}/${+d}/${y}`)));
+writeFileSync(join(out, 'en-excel-dmy.csv'), toCSV(enHeader, reDate((y, m, d) => `${d}/${m}/${y} 00:00`)));
+const BAD_DATES = ['', 'n/a', '2025-02-30'];
+writeFileSync(join(out, 'en-bad-dates.csv'), toCSV(enHeader, [...enRows, ...BAD_DATES.map(v => ['SBADDATE', v, ...enRows[0].slice(2)])]));
+
 // ---- GA4 row model: one row per (month, page, step); 80% of real submits -----
 const split = (total, shares) => {           // integer split preserving the total
   const parts = shares.map(s => Math.floor(total * s));
@@ -213,7 +220,7 @@ const expected = {
   cvrRawJan: (enParticipantsByMonth['2025-01'] / viewsByMonth['2025-01'] * 100).toFixed(2) + '%',
   adjViewsJan: Math.round(viewsByMonth['2025-01'] / (ga4SubmitsByMonth['2025-01'] / enRowsByMonth['2025-01'])),
   pages: PAGES.map(p => p.name), ladder: LADDER.map(l => l.label), ladderLength: LADDER.length,
-  tsvExtraSubmits: 12,
+  tsvExtraSubmits: 12, badDates: BAD_DATES.length,
   realShapeSubmits: ga4SubmitsByMonth['2025-01'] + ga4SubmitsByMonth['2025-02'],
 };
 writeFileSync(join(out, 'expected.json'), JSON.stringify(expected, null, 2));
