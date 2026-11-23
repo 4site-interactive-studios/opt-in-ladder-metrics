@@ -33,14 +33,68 @@ The opt-in ladder is a fundraising pattern where a supporter who completes one a
 
 ---
 
-## Getting Started
+## Step-by-step: build a report
 
-1. Open `index.html` (the dashboard file) in any modern browser
-2. Export the **Opt-in Ladder Transactions** report from Engaging Networks
-3. Drop the CSV onto the upload screen or click to browse
-4. *(Optional)* Export the client's GA4 Exploration (see the [setup guide](#ga4-exploration-setup-guide)) and drop the CSV/TSV files too — together with the EN file, or later via **Add GA4 Export** in the top bar or the drop zone inside the **GA4 Data** panel
+Each run takes one Engaging Networks (EN) export and three Google Analytics 4 (GA4) exports. The files never leave your computer: the dashboard reads them in your browser.
 
-No build step. No npm. No server required.
+Two pieces are set up once per client and reused on every run: a saved query in EN (see [Set up the saved query](#set-up-the-saved-query-first-run-only)) and a GA4 exploration built with the [GA4 Exploration Setup Guide](#ga4-exploration-setup-guide). GA4 is optional. Without it you still get the EN dashboard, minus the GA4 block, coverage and conversion rates.
+
+### 1. Pick the reporting window
+
+Use one end date for both exports, usually the last day of the most recent full month. Start the EN export at the ladder's launch so the trend charts have the full history. Start the GA4 export on the same date, or on the day the GA4 custom definitions were registered if that came later, because GA4 has no ladder data before then. The dashboard's Period filter narrows the view afterward, so you don't need a separate export per period.
+
+### 2. Export the transactions from Engaging Networks
+
+1. Go to **Data & Reports > Export**
+2. Pick **Choose a saved query**, select the client's opt-in ladder query ("Opt-in Ladder Transactions" by convention), and click next
+3. In **Export Options**, set:
+   - **Format:** Transactional, so you get one row per opt-in submission
+   - **File type:** CSV
+   - **Custom Reference Names:** unchecked, so the columns keep EN's default names (`External Reference 2`, `Campaign Data 32`). The dashboard matches those exact names, and renamed columns hide the Traffic Source and Device sections.
+   - **Use Export Group:** optional. The dashboard ignores columns it doesn't read, so a group that leaves out names, emails and addresses works as long as the file still has `Supporter ID`.
+4. Click next, check the summary, and click **Export Supporters**
+5. Click **Go to the Job Monitor** and download the file when the job finishes
+
+Don't open and resave the CSV in Excel. Excel rewrites `Campaign Date` from `2025-01-02` to `1/2/2025`, and the dashboard then can't place any row in a month. Open a copy if you want to look at it.
+
+#### Set up the saved query (first run only)
+
+If the client doesn't have the query yet, build it under **Data & Reports > Export > Create a new query** so it returns the transactions on the opt-in ladder page: the page whose ID is in the `OptInLadder.iframeUrl` option of the client's ENgrid theme (NWF: 88894). Save it as "Opt-in Ladder Transactions" so the next person finds it.
+
+[TODO: copy the exact query builder filters, including any date filter, from NWF's saved query]
+
+### 3. Export the GA4 tabs
+
+1. In the client's GA4 property, open **Explore** and then the opt-in ladder exploration
+2. Set the date range in the **Variables** column to the window from step 1
+3. On the **Ladder Pages** tab, click **Export data** in the upper right and choose **CSV**
+4. Do the same on the **Ladder Steps** and **Ladder Views** tabs
+
+Each export covers only the tab you're on and includes every row, not just the rows on screen. All three download as `download.csv` (your browser numbers the repeats). Leave the names as they are: the dashboard reads the exploration and tab name from inside each file.
+
+If a tab shows `(other)` rows, export it in shorter date ranges as described in step 5 of the [setup guide](#ga4-exploration-setup-guide).
+
+### 4. Load the files
+
+1. Open `index.html` in any modern browser. There's no build step, npm or server.
+2. Drop the EN CSV and the three GA4 files onto the upload screen together, or click to browse
+
+To add GA4 files after the dashboard is open, use **Add GA4 Export** in the top bar or the drop zone in the **GA4 Data** panel.
+
+### 5. Check the import
+
+Open the **GA4 Data** panel inside the Period Breakdown card and read the import report before you trust any numbers. Look for:
+
+- A mapping on every column (unmapped columns show in amber)
+- Months covered that match your window from step 1
+- No warnings
+- GA4 Coverage at or under 100%
+
+Coverage above 100% means GA4 counted more submits than EN recorded, usually because the exploration let test traffic through or the EN export was filtered. Fix the export and reload before you report anything.
+
+### 6. Copy the summary
+
+Set the **Period** filter to the period you're reporting on. Then use **Copy Short Summary** for the client-ready version or **Copy Full Summary** for the internal one (see [Copy Summary Buttons](#copy-summary-buttons)).
 
 ---
 
@@ -252,7 +306,7 @@ Optional fourth tab when labels or page names get renamed over time: `Year`, `Mo
 
 **5. If a tab shows `(other)` rows or looks truncated**, shorten the date range and export several shards with identical columns; the dashboard concatenates them and flags overlapping months. The Ladder Pages tab is the one that grows with the number of parent pages.
 
-**6. Export.** On each tab: Export (top right) → Download CSV (TSV also works); each tab downloads separately as `download.csv`, and the dashboard reads the tab name from inside the file. Drop all files together with the EN CSV, or add them later via *Add GA4 Export*. Check the import report in the GA4 Data panel: every column should show a mapping, the month range should match the EN export, and there should be no warnings.
+**6. Export.** On every reporting run, follow [steps 3 to 5 of the step-by-step section](#3-export-the-ga4-tabs). TSV exports work too.
 
 **Caveats:** GA4 only sees traffic that loads GTM and consents to analytics, which is exactly what the Coverage figure measures. Google Signals thresholding can hide low-count rows in explorations. Adding `opt_in_step` as an event-scoped custom dimension would enable a per-step funnel, but this dashboard reads step data as sum metrics only.
 
